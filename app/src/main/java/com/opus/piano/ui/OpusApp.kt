@@ -43,7 +43,7 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Outlined.Home), REPERTOIRE("Repertoire", Icons.Outlined.LibraryMusic),
     PRACTICE("Practice", Icons.Outlined.Piano), QUESTS("Quests", Icons.Outlined.EmojiEvents), WRAPPED("Wrapped", Icons.Outlined.Insights)
 }
-@Composable fun OpusApp(model: OpusViewModel) {
+@Composable fun OpusApp(model: OpusViewModel, catalog: CatalogViewModel) {
     val context = LocalContext.current
     val motionScale by produceState(1f, context) {
         val resolver = context.contentResolver
@@ -62,8 +62,10 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route ?: Destination.HOME.name
+    val catalogNotice by catalog.notice.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(message) { message?.let { snackbar.showSnackbar(it); model.dismissMessage() } }
+    LaunchedEffect(catalogNotice) { catalogNotice?.let { snackbar.showSnackbar(it); catalog.dismissNotice() } }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
@@ -73,7 +75,7 @@ private enum class Destination(val label: String, val icon: ImageVector) {
                         selectedIconColor = Gold, selectedTextColor = Gold,
                         indicatorColor = Gold.copy(alpha = .12f),
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant), selected = current == destination.name, onClick = {
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant), selected = current == destination.name || (destination == Destination.REPERTOIRE && current.startsWith("catalog")), onClick = {
                         nav.navigate(destination.name) { popUpTo(nav.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true }
                     }, icon = { Icon(destination.icon, contentDescription = null) }, label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) })
                 }
@@ -89,7 +91,10 @@ private enum class Destination(val label: String, val icon: ImageVector) {
             NavHost(navController = nav, startDestination = Destination.HOME.name, modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                 enterTransition = { fadeIn(tween(if (motionScale == 0f) 0 else 220)) }, exitTransition = { fadeOut(tween(if (motionScale == 0f) 0 else 150)) }) {
                 composable(Destination.HOME.name) { Home(library) { nav.navigate(Destination.PRACTICE.name) { launchSingleTop = true } } }
-                composable(Destination.REPERTOIRE.name) { Repertoire(library, model) }
+                composable(Destination.REPERTOIRE.name) { Repertoire(library, model, { nav.navigate("catalog") { launchSingleTop = true } }, { nav.navigate("catalog/work/$it") }) }
+                composable("catalog") { CatalogScreen(catalog, library, { nav.popBackStack() }, { nav.navigate("catalog/composer/$it") }, { nav.navigate("catalog/work/$it") }) }
+                composable("catalog/composer/{id}") { route -> ComposerScreen(route.arguments?.getString("id").orEmpty(), catalog, library, { nav.popBackStack() }, { nav.navigate("catalog/work/$it") }) }
+                composable("catalog/work/{id}") { route -> WorkScreen(route.arguments?.getString("id").orEmpty(), catalog, library, { nav.popBackStack() }, { nav.navigate("catalog/composer/$it") }) }
                 composable(Destination.PRACTICE.name) { Practice(library, timer, model, motionScale != 0f) }
                 composable(Destination.QUESTS.name) { ComingSoon(library, "Quests", "A little progress,\nevery day.", "Build a practice habit that lasts. Personal goals, achievements, XP and levels are coming in a future phase.", Icons.Outlined.EmojiEvents, listOf("Practice goals", "Milestones & achievements", "XP & pianist levels")) }
                 composable(Destination.WRAPPED.name) { ComingSoon(library, "Wrapped", "Your music.\nYour story.", "A thoughtful look back at your time at the piano. Monthly and yearly insights are coming in a future phase.", Icons.Outlined.Insights, listOf("Monthly reflections", "Your year at the piano", "Repertoire highlights")) }
@@ -97,19 +102,19 @@ private enum class Destination(val label: String, val icon: ImageVector) {
         }
     }
 }
-@Composable private fun Heading(eyebrow: String, title: String, subtitle: String) {
+@Composable internal fun Heading(eyebrow: String, title: String, subtitle: String) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(eyebrow.uppercase(), style = MaterialTheme.typography.labelSmall, color = Gold)
         Text(title, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-@Composable private fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+@Composable internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), border = BorderStroke(1.dp, Gold.copy(alpha = .09f)), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
     }
 }
-@Composable private fun SectionTitle(title: String) { Text(title, style = MaterialTheme.typography.titleLarge) }
+@Composable internal fun SectionTitle(title: String) { Text(title, style = MaterialTheme.typography.titleLarge) }
 private fun duration(millis: Long): String {
     val seconds = millis / 1000
     return "%02d:%02d:%02d".format(seconds / 3600, seconds / 60 % 60, seconds % 60)
@@ -171,17 +176,23 @@ private fun dayOf(timestamp: Long): LocalDate = Instant.ofEpochMilli(timestamp).
     }
 }
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun Repertoire(state: LibraryState, model: OpusViewModel) {
+@Composable private fun Repertoire(state: LibraryState, model: OpusViewModel, explore: () -> Unit, workDetail: (String) -> Unit) {
     var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
     var editorOpen by rememberSaveable { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Piece?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf("All") }
     var sortComposer by rememberSaveable { mutableStateOf(false) }
-    val pieces = state.pieces.filter { (filter == "All" || it.status.label == filter) && (it.title.contains(query, true) || it.composer.contains(query, true)) }
+    val pieces = state.pieces.filter { (filter == "All" || it.status.label == filter) && (catalogText(it.title).contains(catalogText(query)) || catalogText(it.composer).contains(catalogText(query))) }
         .let { if (sortComposer) it.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { p -> p.composer }) else it }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Heading("Your personal collection", "Repertoire", "From first notes to a piece that feels like home.") }
+        item { Panel {
+            Text("YOUR NEXT MOVEMENT", style = MaterialTheme.typography.labelSmall, color = Gold)
+            SectionTitle("Discover classical music")
+            Text("Explore composers and works from Open Opus, then add a piece to your collection.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = explore) { Icon(Icons.Outlined.TravelExplore, null); Spacer(Modifier.width(8.dp)); Text("Browse catalogue") }
+        } }
         item { Button(onClick = { editingId = null; editorOpen = true }) { Icon(Icons.Outlined.Add, null); Text(" Add piece") } }
         item { OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Search title or composer") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true) }
         item {
@@ -203,6 +214,7 @@ private fun dayOf(timestamp: Long): LocalDate = Instant.ofEpochMilli(timestamp).
                     IconButton(onClick = { deleting = piece }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${piece.title}") }
                 }
                 PieceProgress(piece)
+                piece.catalogWorkId?.let { id -> TextButton(onClick = { workDetail(id) }) { Text("View catalogue detail") } }
                 Text(piece.difficulty.label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                 if (piece.notes.isNotBlank()) Text(piece.notes, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
@@ -242,7 +254,7 @@ private fun dayOf(timestamp: Long): LocalDate = Instant.ofEpochMilli(timestamp).
                     TextButton(onClick = dismiss, enabled = !saving) { Text("Cancel") }
                     Button(enabled = title.isNotBlank() && composer.isNotBlank() && !saving, onClick = {
                         saving = true
-                        save(Piece(piece?.id ?: 0, title, composer, difficulty, status, notes)) { success ->
+                        save(Piece(piece?.id ?: 0, title, composer, difficulty, status, notes, piece?.catalogWorkId)) { success ->
                             saving = false
                             if (success) dismiss()
                         }
