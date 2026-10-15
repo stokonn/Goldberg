@@ -31,9 +31,9 @@ private val LightPalette = lightColorScheme(
 )
 @Composable fun OpusTheme(theme: String = "System", content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (theme == "Dark" || (theme == "System" && androidx.compose.foundation.isSystemInDarkTheme())) Palette else LightPalette, typography = Typography(
-        headlineLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 32.sp, lineHeight = 38.sp),
-        headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontSize = 28.sp, lineHeight = 34.sp),
-        titleLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 21.sp, lineHeight = 27.sp),
+        headlineLarge = TextStyle(fontSize = 32.sp, lineHeight = 38.sp),
+        headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp),
+        titleLarge = TextStyle(fontSize = 21.sp, lineHeight = 27.sp),
         labelSmall = TextStyle(fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Medium)
     ), shapes = Shapes(
         small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),

@@ -4,11 +4,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -16,26 +21,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opus.piano.data.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.*
+import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable internal fun ProfileScreen(state: LibraryState, badges: List<BadgeProgress>, profile: ProfileViewModel, model: OpusViewModel, badgeDetail: (String) -> Unit) {
+@Composable internal fun ProfileScreen(state: LibraryState, badges: List<BadgeProgress>, profile: ProfileViewModel, badgeDetail: (String) -> Unit) {
     val settings by profile.settings.collectAsStateWithLifecycle()
     val busy by profile.busy.collectAsStateWithLifecycle()
-    val preview by profile.preview.collectAsStateWithLifecycle()
-    var name by rememberSaveable(settings.username) { mutableStateOf(settings.username) }
-    var period by rememberSaveable { mutableStateOf("Week") }
+    var edit by rememberSaveable { mutableStateOf(false) }
     var manage by rememberSaveable { mutableStateOf(false) }
+    var period by rememberSaveable { mutableStateOf("Week") }
     var limit by rememberSaveable { mutableIntStateOf(20) }
-    val photo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(profile::avatar) }
-    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(profile::export) }
-    val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(profile::inspect) }
     val avatar by produceState<android.graphics.Bitmap?>(null, settings.avatar) {
         value = withContext(Dispatchers.Default) { runCatching {
             val bytes = android.util.Base64.decode(settings.avatar, android.util.Base64.DEFAULT)
@@ -44,95 +47,165 @@ import java.time.*
     }
     val today = LocalDate.now()
     val zone = ZoneId.systemDefault()
-    val filtered = remember(state.sessions, period, today) {
-        val from = when (period) { "Week" -> today.minusDays(6); "Month" -> today.minusDays(29); "Year" -> today.minusDays(364); else -> LocalDate.MIN }
-        state.sessions.filter { AchievementEngine.recordedDay(it, zone) in from..today }
-    }
+    val filtered = remember(state.sessions, period, today, zone) { profilePeriod(state.sessions, period, today, zone) }
+    val lifetime = remember(state.sessions) { state.sessions.sumOf { it.durationMillis } }
+    val periodTime = remember(filtered) { filtered.sumOf { it.durationMillis } }
+    val streak = remember(state.sessions, today, zone) { currentPracticeStreak(state.sessions, today, zone) }
+    val partsBySession = remember(state.parts) { state.parts.groupBy { it.sessionId } }
     val totals = remember(filtered, state.parts) { attributedSessions(filtered, state.parts).groupBy { it.catalogWorkId?.let { id -> "catalog:$id" } ?: it.pieceId?.let { id -> "piece:$id" } ?: "free" }.values.map { entries -> entries.first().pieceTitle to entries.sumOf { it.durationMillis } }.sortedByDescending { it.second }.take(5) }
-    val currentStreak = remember(state.sessions, today) {
-        val days = state.sessions.filter(AchievementEngine::valid).map { AchievementEngine.recordedDay(it, zone) }.toSet()
-        var day = if (today in days) today else today.minusDays(1); var count = 0
-        while (day in days) { count++; day = day.minusDays(1) }; count
-    }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Heading("GOLDBERG · A NEW ERA", "Profile", "Your music, your progress, your journal.") }
-        item { Panel {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Surface(Modifier.size(80.dp), shape = MaterialTheme.shapes.large) {
-                    if (avatar != null) Image(avatar!!.asImageBitmap(), "Your avatar", contentScale = ContentScale.Crop)
+    val showcased = remember(settings.badgeIds, badges) { settings.badgeIds.mapNotNull { id -> badges.firstOrNull { it.definition.id == id && it.unlocked } } }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Surface(Modifier.size(64.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+                    if (avatar != null) Image(avatar!!.asImageBitmap(), "Profile avatar", contentScale = ContentScale.Crop)
                     else Icon(Icons.Outlined.Person, "Default avatar", Modifier.padding(16.dp))
                 }
-                Column { Text(settings.username, style = MaterialTheme.typography.titleLarge); TextButton(onClick = { photo.launch("image/*") }, enabled = !busy) { Text("Choose avatar") } }
-            }
-            if (settings.avatar.isNotBlank()) TextButton(onClick = profile::clearAvatar, enabled = !busy) { Text("Use default avatar") }
-            OutlinedTextField(name, { name = it.take(80) }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            Button(onClick = { profile.username(name) }, enabled = !busy && name.trim() != settings.username) { Text("Save username") }
-        } }
-        item { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Week", "Month", "Year", "All time").forEach { label -> FilterChip(period == label, { period = label; limit = 20 }, label = { Text(label) }) }
-        } }
-        item { Panel {
-            Text("${duration(filtered.sumOf { it.durationMillis })} practiced · $period", style = MaterialTheme.typography.titleLarge)
-            Text("Lifetime practice: ${duration(state.sessions.sumOf { it.durationMillis })}")
-            Text("${state.pieces.size} repertoire pieces · ${filtered.size} sessions in this period")
-            Text("$currentStreak day current streak · ${badges.count { it.unlocked }} achievements")
-        } }
-        item { ActivityChart(filtered, period) }
-        item { SectionTitle("Badge showcase (${settings.badgeIds.size}/5)")
-            TextButton(onClick = { manage = !manage }) { Text(if (manage) "Done editing showcase" else "Choose & reorder badges") }
-        }
-        if (settings.badgeIds.isEmpty()) item { Text("Choose up to five unlocked badges to display here.") }
-        items(settings.badgeIds, key = { "showcase:$it" }) { id ->
-            val badge = badges.firstOrNull { it.definition.id == id && it.unlocked }
-            if (badge != null) Panel {
-                TextButton(onClick = { badgeDetail(id) }) { MedalArtwork(badge, Modifier.size(48.dp)); Spacer(Modifier.width(12.dp)); Text(badge.definition.name) }
-                if (manage) FlowRow {
-                    val index = settings.badgeIds.indexOf(id)
-                    TextButton(enabled = index > 0 && !busy, onClick = { val ids = settings.badgeIds.toMutableList(); java.util.Collections.swap(ids, index, index - 1); profile.showcase(ids) }) { Text("Move earlier") }
-                    TextButton(enabled = index < settings.badgeIds.lastIndex && !busy, onClick = { val ids = settings.badgeIds.toMutableList(); java.util.Collections.swap(ids, index, index + 1); profile.showcase(ids) }) { Text("Move later") }
-                    TextButton(enabled = !busy, onClick = { profile.showcase(settings.badgeIds - id) }) { Text("Remove") }
+                Column(Modifier.weight(1f)) {
+                    Text(settings.username, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    TextButton(onClick = { edit = true }, contentPadding = PaddingValues(horizontal = 0.dp)) { Text("Edit Profile") }
                 }
             }
         }
-        if (manage) items(badges.filter { it.unlocked && it.definition.id !in settings.badgeIds }, key = { "choose:${it.definition.id}" }) { badge ->
-            OutlinedButton(onClick = { profile.showcase(settings.badgeIds + badge.definition.id) }, enabled = settings.badgeIds.size < 5 && !busy) { Text("Showcase ${badge.definition.name}") }
+        if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        item { StatisticCards(listOf("Total practice" to compactPracticeTime(lifetime), "Repertoire pieces" to state.pieces.size.toString(), "Practice sessions" to state.sessions.size.toString(), "Current streak" to "$streak ${if (streak == 1) "day" else "days"}")) }
+        item {
+            SectionTitle("Practice activity")
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Week", "Month", "Year", "All time").forEach { label -> FilterChip(period == label, { period = label; limit = 20 }, label = { Text(label) }) }
+            }
+            Text("${compactPracticeTime(periodTime)} · ${filtered.size} ${if (filtered.size == 1) "session" else "sessions"}", style = MaterialTheme.typography.titleMedium)
+            Text(when (period) { "Week" -> "Last 7 days"; "Month" -> "Last 30 days"; "Year" -> "Last 365 days"; else -> "Your complete practice history" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+            ActivityChart(filtered, period, today, zone)
         }
-        item { SectionTitle("Most practiced · $period") }
-        items(totals) { (title, time) -> Panel { Text(title); Text(duration(time), color = MaterialTheme.colorScheme.primary) } }
-        if (totals.isEmpty()) item { Text("No practice in this period yet.") }
-        item { SectionTitle("Session history · $period") }
-        items(filtered.take(limit), key = { "session:${it.id}" }) { SessionRow(it, state.parts.filter { p -> p.sessionId == it.id }) }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Badge showcase", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = { manage = true }) { Text("Edit") }
+            }
+            if (showcased.isEmpty()) Text("Make this space yours. Choose up to five earned badges using Edit.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(showcased, key = { it.definition.id }) { badge ->
+                    Surface(onClick = { badgeDetail(badge.definition.id) }, shape = MaterialTheme.shapes.medium, modifier = Modifier.width(112.dp)) {
+                        Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            MedalArtwork(badge, Modifier.size(64.dp))
+                            Text(badge.definition.name, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+        }
+        item { SectionTitle("Most practiced") }
+        if (totals.isEmpty()) item { Text("Save a practice session to see your most-played compositions here.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        items(totals) { (title, time) ->
+            Surface(shape = MaterialTheme.shapes.medium) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    Text(compactPracticeTime(time), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+        item { SectionTitle("Session history") }
+        if (filtered.isEmpty()) item { Text("No sessions in this period yet. Your next practice will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        items(filtered.take(limit), key = { "session:${it.id}" }) { SessionRow(it, partsBySession[it.id].orEmpty()) }
         if (filtered.size > limit) item { OutlinedButton(onClick = { limit += 20 }) { Text("Show older sessions") } }
-        item { Panel {
-            SectionTitle("Appearance")
-            Choice("Theme", listOf("System", "Light", "Dark"), settings.theme) { if (!busy) profile.theme(it) }
-            Text("Typography follows your device font size. Motion follows Android animation settings.", style = MaterialTheme.typography.bodySmall)
-        } }
-        item { Panel {
-            SectionTitle("Backup & restore")
-            Text("Export a local copy before replacing data. A restore replaces the journal, profile and cached catalogue with the selected backup.")
-            Button(onClick = { export.launch("Goldberg-backup.json") }, enabled = !busy) { Text("Export backup") }
-            OutlinedButton(onClick = { restore.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }, enabled = !busy) { Text("Select backup to restore") }
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        } }
-        item { Text("Goldberg 0.6.0 · A New Era", style = MaterialTheme.typography.labelSmall) }
     }
-    preview?.let { summary ->
-        val timer by model.timer.collectAsStateWithLifecycle()
-        AlertDialog(onDismissRequest = profile::cancelRestore, title = { Text("Replace this device’s journal?") }, text = { Text("$summary\n\nAll current saved data will be replaced. Export a backup first. Any active timer will be discarded after a successful restore.${if (timer.elapsed > 0 || timer.running) " You have an unfinished session." else ""}") },
-        confirmButton = { TextButton(enabled = !busy, onClick = { profile.restore(model::reset) }) { Text("Replace & restore") } }, dismissButton = { TextButton(enabled = !busy, onClick = profile::cancelRestore) { Text("Cancel") } }) }
+    if (edit) EditProfile(settings, avatar, busy, profile) { edit = false }
+    if (manage) ShowcaseEditor(settings, badges, busy, profile) { manage = false }
 }
 
-@Composable private fun ActivityChart(sessions: List<PracticeSession>, period: String) {
-    val bins = remember(sessions, period) { activityBins(sessions, period, LocalDate.now(), ZoneId.systemDefault()) }
-    val peak = (bins.maxOfOrNull { it.second } ?: 0).coerceAtLeast(60000)
-    Panel {
-        SectionTitle("Practice activity · $period")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            bins.forEach { (label, time) -> Column(Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = "$label: ${time / 60000} minutes" }, horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.height(88.dp).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) { Box(Modifier.fillMaxWidth().height((2 + 86 * time.toFloat() / peak).dp).background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small)) }
-                Text(if (period == "Year") label.takeLast(2) else label.takeLast(5), style = MaterialTheme.typography.labelSmall, maxLines = 2)
-            } }
+@Composable private fun StatisticCards(metrics: List<Pair<String, String>>) {
+    val fontScale = LocalDensity.current.fontScale
+    BoxWithConstraints {
+        val columns = if (maxWidth >= 280.dp && fontScale < 1.5f) 2 else 1
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            metrics.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { (label, value) -> Surface(Modifier.weight(1f), shape = MaterialTheme.shapes.medium) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(value, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } }
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun EditProfile(settings: ProfileSettings, avatar: android.graphics.Bitmap?, busy: Boolean, profile: ProfileViewModel, dismiss: () -> Unit) {
+    var name by rememberSaveable(settings.username) { mutableStateOf(settings.username) }
+    val photo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(profile::avatar) }
+    AlertDialog(onDismissRequest = { if (!busy) dismiss() }, title = { Text("Edit Profile") }, text = {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Surface(Modifier.size(72.dp), shape = CircleShape) {
+                if (avatar != null) Image(avatar.asImageBitmap(), "Current avatar", contentScale = ContentScale.Crop)
+                else Icon(Icons.Outlined.Person, "Default avatar", Modifier.padding(16.dp))
+            }
+            OutlinedTextField(name, { name = it.take(80) }, label = { Text("Display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Button(onClick = { profile.username(name) }, enabled = !busy && name.isNotBlank() && name.trim() != settings.username) { Text("Save name") }
+            OutlinedButton(onClick = { photo.launch("image/*") }, enabled = !busy) { Text("Choose avatar") }
+            if (settings.avatar.isNotBlank()) TextButton(onClick = profile::clearAvatar, enabled = !busy) { Text("Use default avatar") }
+            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+    }, confirmButton = { TextButton(onClick = dismiss, enabled = !busy) { Text("Done") } })
+}
+
+@Composable private fun ShowcaseEditor(settings: ProfileSettings, badges: List<BadgeProgress>, busy: Boolean, profile: ProfileViewModel, dismiss: () -> Unit) {
+    AlertDialog(onDismissRequest = dismiss, title = { Text("Edit showcase · ${settings.badgeIds.size}/5") }, text = {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(settings.badgeIds, key = { "selected:$it" }) { id ->
+                val index = settings.badgeIds.indexOf(id)
+                Column {
+                    Text(badges.firstOrNull { it.definition.id == id }?.definition?.name ?: id)
+                    Row {
+                        IconButton(enabled = index > 0 && !busy, onClick = { val ids = settings.badgeIds.toMutableList(); java.util.Collections.swap(ids, index, index - 1); profile.showcase(ids) }) { Icon(Icons.Outlined.ArrowUpward, "Move badge earlier") }
+                        IconButton(enabled = index < settings.badgeIds.lastIndex && !busy, onClick = { val ids = settings.badgeIds.toMutableList(); java.util.Collections.swap(ids, index, index + 1); profile.showcase(ids) }) { Icon(Icons.Outlined.ArrowDownward, "Move badge later") }
+                        IconButton(enabled = !busy, onClick = { profile.showcase(settings.badgeIds - id) }) { Icon(Icons.Outlined.Close, "Remove badge from showcase") }
+                    }
+                }
+            }
+            items(badges.filter { it.unlocked && it.definition.id !in settings.badgeIds }, key = { it.definition.id }) { badge ->
+                OutlinedButton(onClick = { profile.showcase(settings.badgeIds + badge.definition.id) }, enabled = !busy && settings.badgeIds.size < 5) { Text("Add ${badge.definition.name}") }
+            }
+            if (badges.none { it.unlocked }) item { Text("Your earned badges will be available here after your first achievement.") }
+        }
+    }, confirmButton = { TextButton(onClick = dismiss) { Text("Done") } })
+}
+
+@Composable private fun ActivityChart(sessions: List<PracticeSession>, period: String, today: LocalDate, zone: ZoneId) {
+    val bins = remember(sessions, period, today, zone) { activityBins(sessions, period, today, zone) }
+    if (sessions.sumOf { it.durationMillis } == 0L) {
+        Surface(shape = MaterialTheme.shapes.medium) { Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("A fresh page", style = MaterialTheme.typography.titleMedium)
+            Text("No practice recorded in this period. Start a session when you’re ready.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } }
+        return
+    }
+    val peak = bins.maxOf { it.second }.coerceAtLeast(1L)
+    val fontScale = LocalDensity.current.fontScale
+    Surface(shape = MaterialTheme.shapes.medium) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Peak ${compactPracticeTime(peak)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BoxWithConstraints {
+                val barWidth = maxOf(32.dp * fontScale, (maxWidth - 6.dp * (bins.size - 1)) / bins.size)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    bins.forEach { (label, time) ->
+                        val display = when (period) {
+                            "Year", "All time" -> runCatching { YearMonth.parse(label).format(DateTimeFormatter.ofPattern("MMM\nyy")) }.getOrDefault(label)
+                            else -> label
+                        }
+                        Column(Modifier.width(barWidth).semantics(mergeDescendants = true) { contentDescription = "Period ending $label: ${duration(time)} practice" }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(Modifier.fillMaxWidth().height(100.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = .05f), MaterialTheme.shapes.small), contentAlignment = Alignment.BottomCenter) {
+                                if (time > 0) Box(Modifier.fillMaxWidth().height(maxOf(2.dp, 100.dp * (time.toFloat() / peak))).background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small))
+                            }
+                            Text(display, style = MaterialTheme.typography.labelSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                }
+            }
+            Text(if (period == "Month") "Five-day totals · labels show the ending day" else if (period == "All time") "Grouped monthly totals · labels show the ending month" else if (period == "Year") "Monthly totals · includes partial boundary months" else "Daily totals", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

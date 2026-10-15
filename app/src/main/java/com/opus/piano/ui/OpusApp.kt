@@ -48,6 +48,8 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 }
 @Composable fun OpusApp(model: OpusViewModel, catalog: CatalogViewModel, experience: ExperienceViewModel, profile: ProfileViewModel) {
     val context = LocalContext.current
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val motionScale by produceState(1f, context) {
         val resolver = context.contentResolver
         val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
@@ -85,27 +87,34 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            NavigationBar(modifier = Modifier.imePadding(), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 Destination.entries.forEach { destination ->
                     NavigationBarItem(colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Gold, selectedTextColor = Gold,
-                        indicatorColor = Gold.copy(alpha = .12f),
+                        selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = .12f),
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant), selected = current == destination.name || (destination == Destination.REPERTOIRE && (current.startsWith("catalog") || current.startsWith("piece/") || current.startsWith("recordings/"))) || (destination == Destination.BADGES && current.startsWith("badge/")), onClick = {
-                        nav.navigate(destination.name) { popUpTo(nav.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true }
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant), selected = selectedTab(current) == destination.name, onClick = {
+                        focus.clearFocus()
+                        keyboard?.hide()
+                        nav.selectTopLevel(destination.name)
                     }, icon = { Icon(destination.icon, contentDescription = null) }, label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) })
                 }
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(Modifier.widthIn(max = 840.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { nav.navigate("catalog") { launchSingleTop = true } }) { Icon(Icons.Outlined.Search, "Universal search") }
-                Text("GOLDBERG", style = MaterialTheme.typography.titleLarge, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(Modifier.widthIn(max = 840.dp).fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("GOLDBERG", style = MaterialTheme.typography.titleLarge, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+                if (current == Destination.HOME.name) {
+                    IconButton(onClick = { nav.navigate(SETTINGS_ROUTE) { launchSingleTop = true } }) { Icon(Icons.Outlined.Settings, "Settings") }
+                } else if (current != SETTINGS_ROUTE) {
+                    IconButton(onClick = { nav.navigate("catalog") { launchSingleTop = true } }) { Icon(Icons.Outlined.Search, "Universal search") }
+                }
             }
             NavHost(navController = nav, startDestination = Destination.HOME.name, modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                 enterTransition = { fadeIn(tween(if (motionScale == 0f) 0 else 220)) }, exitTransition = { fadeOut(tween(if (motionScale == 0f) 0 else 150)) }) {
-                composable(Destination.HOME.name) { ProfileScreen(library, badges, profile, model) { nav.navigate("badge/$it") } }
+                composable(SETTINGS_ROUTE) { SettingsScreen(profile, model) { nav.popBackStack() } }
+                composable(Destination.HOME.name) { ProfileScreen(library, badges, profile) { nav.navigate("badge/$it") } }
                 composable(Destination.REPERTOIRE.name) { RepertoireScreen(library, catalogData, model, { nav.navigate("catalog") { launchSingleTop = true } }, { nav.navigate("piece/$it") }) }
                 composable("catalog") { CatalogScreen(catalog, library, { nav.popBackStack() }, { nav.navigate("catalog/composer/$it") }, { nav.navigate("catalog/work/$it") }, { nav.navigate("piece/$it") }) }
                 composable("catalog/composer/{id}") { route -> ComposerScreen(route.arguments?.getString("id").orEmpty(), catalog, library, { nav.popBackStack() }, { nav.navigate("catalog/work/$it") }) }

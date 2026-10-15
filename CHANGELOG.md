@@ -1,5 +1,18 @@
 # Changelog
 
+## Goldberg 0.6.1 — Profile Reimagined
+
+- Replace the large Profile editor card with a circular avatar, display name and dedicated Edit Profile dialog.
+- Add responsive lifetime practice/repertoire/session/streak cards and compact period filters, readable scrollable activity bars and explicit empty states.
+- Present selected badges in a horizontal shelf with a dedicated selection/reordering editor; retain the five-unlocked-badge limit and full Badges tab.
+- Move Appearance and Backup & Restore into dedicated Settings, opened from the Profile app-bar gear. Remove Search from Profile’s app bar.
+- Fix bottom tabs restoring saved Search stacks; select tab roots and dismiss search focus/keyboard, with keyboard-safe bottom navigation insets.
+- Use system-default typography in the shared theme, with adaptive spacing and accessibility descriptions.
+- Cache per-session part grouping for history and retain lightweight lazy lists.
+- Keep schema 4, backup format 1, application ID, database and signing configuration unchanged; increment version code to 4.
+- Add JVM coverage for period/streak/formatting/tab ownership/showcase behavior and instrumentation for real navigation and 0.6.0-format backup/theme compatibility.
+- Full release description: [docs/RELEASE-0.6.1.md](docs/RELEASE-0.6.1.md).
+
 ## Goldberg 0.6.0 — A New Era
 
 - Rebrand Opus to Goldberg, version code 3; retain application ID, database name, stable identifiers and signing setup.
