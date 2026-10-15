@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 /** Never select a biography by surname alone. Ambiguous or unverified identities stay empty. */
 internal class WikimediaProfile(private val http: CatalogHttp) {
-    private suspend fun api(host: String, parameters: String) = http.json("https://$host/w/api.php?format=json&formatversion=2&$parameters")
+    private suspend fun api(host: String, parameters: String) = http.json("https://$host/w/api.php?format=json&formatversion=2&${parameters.replace("|", "%7C")}")
     private fun values(entity: JSONObject, property: String): List<JSONObject> {
         val claims = entity.optJSONObject("claims")?.optJSONArray(property)?.objects().orEmpty().filter { it.text("rank") != "deprecated" }
         val ranked = claims.filter { it.text("rank") == "preferred" }.ifEmpty { claims }
@@ -37,9 +37,17 @@ internal class WikimediaProfile(private val http: CatalogHttp) {
         val entity = matches.single()
         val wikidata = "https://www.wikidata.org/wiki/${entity.getString("id")}"
         var profile = ComposerProfile(wikidataUrl = wikidata, birth = date(entity, "P569"), death = date(entity, "P570"))
+        val originIds = (values(entity, "P19") + values(entity, "P27")).map { it.text("id") }.filter { it.matches(Regex("Q\\d+")) }.distinct().take(3)
+        if (originIds.isNotEmpty()) {
+            try {
+                val origins = api("www.wikidata.org", "action=wbgetentities&ids=${originIds.joinToString("|")}&props=labels&languages=en").getJSONObject("entities")
+                profile = profile.copy(origin = originIds.mapNotNull { origins.optJSONObject(it)?.optJSONObject("labels")?.optJSONObject("en")?.text("value") }.distinct().joinToString(" · "))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Optional historical metadata. */ }
+        }
         val title = entity.optJSONObject("sitelinks")?.optJSONObject("enwiki")?.text("title").orEmpty()
         if (title.isNotBlank()) {
-            val response = api("en.wikipedia.org", "action=query&prop=extracts|info|pageprops&exintro=1&explaintext=1&exsentences=4&inprop=url&meta=siteinfo&siprop=rightsinfo&titles=${encoded(title)}")
+            val response = api("en.wikipedia.org", "action=query&prop=extracts|info|pageprops&exintro=1&explaintext=1&inprop=url&meta=siteinfo&siprop=rightsinfo&titles=${encoded(title)}")
             val query = response.getJSONObject("query")
             val page = query.optJSONArray("pages")?.objects()?.singleOrNull()
             val rights = query.optJSONObject("rightsinfo")
@@ -77,7 +85,7 @@ internal class WikimediaProfile(private val http: CatalogHttp) {
 }
 
 internal fun profileToJson(profile: ComposerProfile): JSONObject = JSONObject().apply {
-    put("text", profile.text); put("articleUrl", profile.articleUrl); put("wikidataUrl", profile.wikidataUrl)
+    put("profileVersion", 5); put("origin", profile.origin); put("text", profile.text); put("articleUrl", profile.articleUrl); put("wikidataUrl", profile.wikidataUrl)
     put("birth", profile.birth); put("death", profile.death); put("license", profile.license); put("licenseUrl", profile.licenseUrl)
     profile.portrait?.let { p -> put("portrait", JSONObject().apply {
         put("url", p.url); put("artist", p.artist); put("credit", p.credit); put("license", p.license); put("licenseUrl", p.licenseUrl); put("sourceUrl", p.sourceUrl)
@@ -86,5 +94,5 @@ internal fun profileToJson(profile: ComposerProfile): JSONObject = JSONObject().
 internal fun profileFromJson(json: JSONObject): ComposerProfile = ComposerProfile(
     json.text("text"), json.text("articleUrl"), json.text("wikidataUrl"), json.text("birth"), json.text("death"),
     json.optJSONObject("portrait")?.let { Portrait(it.text("url"), it.text("artist"), it.text("credit"), it.text("license"), it.text("licenseUrl"), it.text("sourceUrl")) },
-    json.text("license"), json.text("licenseUrl")
+    json.text("license"), json.text("licenseUrl"), json.text("origin")
 )

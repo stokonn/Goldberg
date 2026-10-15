@@ -33,7 +33,7 @@ class CatalogHttp {
                 connection.connectTimeout = 12000
                 connection.readTimeout = 15000
                 connection.instanceFollowRedirects = false
-                connection.setRequestProperty("User-Agent", "Opus/1.0 (Android; com.opus.piano; piano practice catalogue)")
+                connection.setRequestProperty("User-Agent", "Opus/0.5 (Android; com.opus.piano; piano practice catalogue)")
                 connection.setRequestProperty("Accept", if (image) "image/*" else "application/json")
                 val code = connection.responseCode
                 if (code !in 200..299) throw IOException(if (code == 429) "Source is busy; please try again later." else "Source returned HTTP $code.")
@@ -60,7 +60,7 @@ class CatalogHttp {
     }
 }
 
-class CatalogRepository(private val db: OpusDatabase, private val filesDir: File, private val http: CatalogHttp = CatalogHttp()) {
+class CatalogRepository(private val db: OpusDatabase, private val filesDir: File, private val http: CatalogHttp = CatalogHttp(), private val achievements: AchievementStore = AchievementStore(db)) {
     private val dao = db.catalogDao()
     private val importLock = Mutex()
     val snapshot = combine(dao.composers(), dao.works()) { composers, works -> CatalogSnapshot(composers, works) }
@@ -71,33 +71,47 @@ class CatalogRepository(private val db: OpusDatabase, private val filesDir: File
     )
     private fun work(json: JSONObject, composerId: String) = CatalogWork(
         json.getString("id"), composerId, json.getString("title"), json.text("subtitle"), json.text("genre"),
-        json.text("searchterms"), json.text("catalogue"), json.text("catalogue_number"), json.text("key")
+        json.text("searchterms"), json.text("catalogue"), json.text("catalogue_number"), json.text("key"), json.text("popular") == "1", json.text("recommended") == "1"
     )
 
     private suspend fun ingest(json: JSONObject) {
         val composers = mutableListOf<CatalogComposer>()
         val works = mutableListOf<CatalogWork>()
+        val popularProvided = mutableSetOf<String>()
+        val recommendedProvided = mutableSetOf<String>()
+        fun readWork(json: JSONObject, composerId: String) {
+            val value = work(json, composerId)
+            works += value
+            if (json.has("popular")) popularProvided += value.id
+            if (json.has("recommended")) recommendedProvided += value.id
+        }
         json.optJSONArray("composers")?.objects()?.forEach { composers += composer(it) }
         json.optJSONObject("composer")?.let { c ->
             composers += composer(c)
-            json.optJSONArray("works")?.objects()?.forEach { works += work(it, c.getString("id")) }
-            json.optJSONObject("work")?.let { works += work(it, c.getString("id")) }
+            json.optJSONArray("works")?.objects()?.forEach { readWork(it, c.getString("id")) }
+            json.optJSONObject("work")?.let { readWork(it, c.getString("id")) }
         }
         json.optJSONArray("results")?.objects()?.forEach { result ->
             val c = result.getJSONObject("composer")
             composers += composer(c)
-            result.optJSONObject("work")?.let { works += work(it, c.getString("id")) }
+            result.optJSONObject("work")?.let { readWork(it, c.getString("id")) }
         }
         db.withTransaction {
+            var metadataChanged = false
             // Detail responses omit life dates; do not overwrite richer cached metadata.
             composers.distinctBy { it.id }.forEach { c ->
                 val old = dao.composer(c.id)
-                dao.putComposers(listOf(c.copy(birth = c.birth.ifBlank { old?.birth.orEmpty() }, death = c.death.ifBlank { old?.death.orEmpty() }, epoch = c.epoch.ifBlank { old?.epoch.orEmpty() })))
+                val merged = c.copy(birth = c.birth.ifBlank { old?.birth.orEmpty() }, death = c.death.ifBlank { old?.death.orEmpty() }, epoch = c.epoch.ifBlank { old?.epoch.orEmpty() })
+                if (merged != old) { dao.putComposers(listOf(merged)); metadataChanged = true }
             }
             works.distinctBy { it.id }.forEach { w ->
                 val old = dao.work(w.id)
-                dao.putWorks(listOf(w.copy(catalogue = w.catalogue.ifBlank { old?.catalogue.orEmpty() }, catalogueNumber = w.catalogueNumber.ifBlank { old?.catalogueNumber.orEmpty() }, musicalKey = w.musicalKey.ifBlank { old?.musicalKey.orEmpty() })))
+                val merged = w.copy(catalogue = w.catalogue.ifBlank { old?.catalogue.orEmpty() }, catalogueNumber = w.catalogueNumber.ifBlank { old?.catalogueNumber.orEmpty() }, musicalKey = w.musicalKey.ifBlank { old?.musicalKey.orEmpty() },
+                    popular = if (w.id in popularProvided) w.popular else old?.popular ?: false,
+                    recommended = if (w.id in recommendedProvided) w.recommended else old?.recommended ?: false)
+                if (merged != old) { dao.putWorks(listOf(merged)); metadataChanged = true }
             }
+            if (metadataChanged) achievements.evaluateInTransaction()
         }
     }
 
@@ -129,10 +143,10 @@ class CatalogRepository(private val db: OpusDatabase, private val filesDir: File
         val next = result.value.optInt("next", -1).takeIf { it > offset }
         return CatalogLoad(next, result.cached, result.warning, result.fetchedAt)
     }
-    suspend fun composerWorks(id: String, force: Boolean = false): CatalogLoad<Unit> {
+    suspend fun composerWorks(id: String, force: Boolean = false): CatalogLoad<Int> {
         require(id.matches(Regex("\\d+")))
         val load = openOpus("work/list/composer/$id/genre/all.json", force)
-        return CatalogLoad(Unit, load.cached, load.warning, load.fetchedAt)
+        return CatalogLoad(load.value.optJSONArray("works")?.length() ?: 0, load.cached, load.warning, load.fetchedAt)
     }
     suspend fun detail(id: String, force: Boolean = false): CatalogLoad<Unit> {
         require(id.matches(Regex("\\d+")))
@@ -151,7 +165,9 @@ class CatalogRepository(private val db: OpusDatabase, private val filesDir: File
                 // Keep a metadata snapshot even when adding from offline search suggestions.
                 if (dao.composer(composer.id) == null) dao.putComposers(listOf(composer))
                 if (dao.work(work.id) == null) dao.putWorks(listOf(work))
-                db.dao().insertCatalogPiece(Piece(title = work.title, composer = composer.name, difficulty = Difficulty.UNRATED, notes = work.subtitle, catalogWorkId = work.id)) != -1L
+                val added = db.dao().insertCatalogPiece(Piece(title = work.title, composer = composer.name, difficulty = Difficulty.UNRATED, notes = work.subtitle, catalogWorkId = work.id, createdAt = System.currentTimeMillis())) != -1L
+                if (added) achievements.evaluateInTransaction()
+                added
             }
         }
     }
@@ -159,7 +175,7 @@ class CatalogRepository(private val db: OpusDatabase, private val filesDir: File
     suspend fun profile(c: CatalogComposer, force: Boolean = false): CatalogLoad<ComposerProfile> = withContext(Dispatchers.IO) {
         val key = "profile:${c.id}"
         val cached = dao.cache(key)
-        if (!force && cached != null && System.currentTimeMillis() - cached.fetchedAt < 30 * 86400000L)
+        if (!force && cached != null && JSONObject(cached.payload).optInt("profileVersion") >= 5 && System.currentTimeMillis() - cached.fetchedAt < 30 * 86400000L)
             return@withContext CatalogLoad(profileFromJson(JSONObject(cached.payload)), true, fetchedAt = cached.fetchedAt)
         try {
             val profile = WikimediaProfile(http).load(c)

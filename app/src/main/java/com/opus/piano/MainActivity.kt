@@ -21,7 +21,10 @@ class MainActivity : ComponentActivity() {
             val catalog: CatalogViewModel = viewModel(factory = viewModelFactory {
                 initializer { CatalogViewModel((application as OpusApplication).catalogRepository, createSavedStateHandle()) }
             })
-            OpusTheme { OpusApp(model, catalog) }
+            val experience: ExperienceViewModel = viewModel(factory = viewModelFactory {
+                initializer { ExperienceViewModel((application as OpusApplication).achievements, (application as OpusApplication).recordings) }
+            })
+            OpusTheme { OpusApp(model, catalog, experience) }
         }
     }
 }

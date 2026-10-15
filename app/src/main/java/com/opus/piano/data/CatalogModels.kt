@@ -33,7 +33,9 @@ data class CatalogWork(
     val searchTerms: String = "",
     val catalogue: String = "",
     val catalogueNumber: String = "",
-    val musicalKey: String = ""
+    val musicalKey: String = "",
+    @ColumnInfo(defaultValue = "0") val popular: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val recommended: Boolean = false
 ) {
     val keyFromTitle: String get() = Regex("\\bin ([A-G](?: flat| sharp)? (?:major|minor))\\b").find(title)?.groupValues?.get(1).orEmpty()
     val catalogLabel: String get() = listOf(catalogue, catalogueNumber).filter { it.isNotBlank() }.joinToString(" ")
@@ -48,7 +50,7 @@ data class Portrait(val url: String, val artist: String, val credit: String, val
 data class ComposerProfile(
     val text: String = "", val articleUrl: String = "", val wikidataUrl: String = "",
     val birth: String = "", val death: String = "", val portrait: Portrait? = null,
-    val license: String = "", val licenseUrl: String = ""
+    val license: String = "", val licenseUrl: String = "", val origin: String = ""
 )
 data class CatalogLoad<T>(val value: T, val cached: Boolean, val warning: String? = null, val fetchedAt: Long = 0L)
 
@@ -56,6 +58,8 @@ data class CatalogLoad<T>(val value: T, val cached: Boolean, val warning: String
 interface CatalogDao {
     @Query("SELECT * FROM catalog_composers ORDER BY name COLLATE NOCASE") fun composers(): Flow<List<CatalogComposer>>
     @Query("SELECT * FROM catalog_works ORDER BY title COLLATE NOCASE") fun works(): Flow<List<CatalogWork>>
+    @Query("SELECT * FROM catalog_composers") suspend fun allComposers(): List<CatalogComposer>
+    @Query("SELECT * FROM catalog_works") suspend fun allWorks(): List<CatalogWork>
     @Query("SELECT * FROM catalog_composers WHERE id = :id") suspend fun composer(id: String): CatalogComposer?
     @Query("SELECT * FROM catalog_works WHERE id = :id") suspend fun work(id: String): CatalogWork?
     @Upsert suspend fun putComposers(items: List<CatalogComposer>)

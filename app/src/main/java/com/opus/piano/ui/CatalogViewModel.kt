@@ -15,7 +15,7 @@ data class CatalogBrowseState(
 data class CatalogResults(val composers: List<CatalogComposer> = emptyList(), val works: List<CatalogWork> = emptyList())
 data class ComposerPageState(val id: String = "", val loading: Boolean = true, val profileLoading: Boolean = true,
     val profile: ComposerProfile? = null, val error: String? = null, val profileError: String? = null,
-    val warning: String? = null, val fetchedAt: Long = 0L)
+    val warning: String? = null, val fetchedAt: Long = 0L, val totalWorks: Int? = null)
 data class WorkPageState(val id: String = "", val loading: Boolean = true, val error: String? = null, val warning: String? = null, val fetchedAt: Long = 0L)
 
 class CatalogViewModel(val repository: CatalogRepository, private val saved: SavedStateHandle) : ViewModel() {
@@ -47,7 +47,10 @@ class CatalogViewModel(val repository: CatalogRepository, private val saved: Sav
     private var composerJob: Job? = null
     private var workJob: Job? = null
 
-    init { query(_browse.value.query) }
+    private var browseStarted = false
+    fun startBrowsing() {
+        if (!browseStarted) { browseStarted = true; query(_browse.value.query) }
+    }
     fun query(value: String) {
         saved["catalogQuery"] = value
         _browse.update { it.copy(query = value, loading = true, error = null, warning = null, next = null, fetchedAt = 0L) }
@@ -93,13 +96,19 @@ class CatalogViewModel(val repository: CatalogRepository, private val saved: Sav
             launch {
                 try {
                     val load = repository.composerWorks(id, force)
-                    _composer.update { it.copy(loading = false, warning = load.warning, fetchedAt = load.fetchedAt) }
+                    _composer.update { it.copy(loading = false, warning = load.warning, fetchedAt = load.fetchedAt, totalWorks = load.value) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { _composer.update { it.copy(loading = false, error = "Works could not be refreshed. Any saved works are shown below.") } }
             }
             launch {
                 try {
-                    val c = withTimeout(20000) { snapshot.first { data -> data.composers.any { it.id == id } }.composers.first { it.id == id } }
+                    val c = withTimeoutOrNull(20000) {
+                        snapshot.first { data -> data.composers.any { it.id == id && it.birth.isNotBlank() } }.composers.first { it.id == id }
+                    }
+                    if (c == null) {
+                        _composer.update { it.copy(profileLoading = false, profileError = "A reliable birth year is needed to verify this biography. Refresh when online.") }
+                        return@launch
+                    }
                     val profile = repository.profile(c, force)
                     _composer.update { it.copy(profileLoading = false, profile = profile.value, profileError = profile.warning) }
                 } catch (cancelled: CancellationException) { throw cancelled }

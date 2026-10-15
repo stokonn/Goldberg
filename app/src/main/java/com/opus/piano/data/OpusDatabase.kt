@@ -1,6 +1,7 @@
 package com.opus.piano.data
 
 import androidx.room.*
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -16,7 +17,11 @@ data class Piece(
     val difficulty: Difficulty = Difficulty.INTERMEDIATE,
     val status: LearningStatus = LearningStatus.PLANNED,
     val notes: String = "",
-    val catalogWorkId: String? = null
+    val catalogWorkId: String? = null,
+    @ColumnInfo(defaultValue = "0") val createdAt: Long = 0,
+    @ColumnInfo(defaultValue = "''") val instrument: String = "",
+    @ColumnInfo(defaultValue = "''") val genre: String = "",
+    @ColumnInfo(defaultValue = "''") val musicalEra: String = ""
 )
 
 // Snapshot titles preserve meaningful history when a repertoire piece is edited or deleted.
@@ -27,7 +32,12 @@ data class PracticeSession(
     val pieceTitle: String,
     val startedAt: Long,
     val completedAt: Long,
-    val durationMillis: Long
+    val durationMillis: Long,
+    val practiceDay: String? = null,
+    val practiceZone: String? = null,
+    val catalogWorkId: String? = null,
+    val composerId: String? = null,
+    @ColumnInfo(defaultValue = "''") val musicalEra: String = ""
 )
 class Converters {
     @TypeConverter fun status(value: String) = LearningStatus.valueOf(value)
@@ -41,17 +51,39 @@ interface OpusDao {
     @Query("SELECT * FROM sessions ORDER BY completedAt DESC") fun observeSessions(): Flow<List<PracticeSession>>
     @Query("SELECT * FROM pieces WHERE catalogWorkId = :id LIMIT 1") suspend fun catalogPiece(id: String): Piece?
     @Query("SELECT * FROM pieces") suspend fun allPieces(): List<Piece>
+    @Query("SELECT * FROM sessions") suspend fun allSessions(): List<PracticeSession>
+    @Update suspend fun updateSession(session: PracticeSession)
+    @Query("SELECT * FROM pieces WHERE id = :id") suspend fun piece(id: Long): Piece?
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertCatalogPiece(piece: Piece): Long
     @Upsert suspend fun save(piece: Piece)
     @Delete suspend fun delete(piece: Piece)
     @Insert suspend fun insert(session: PracticeSession)
 }
-@Database(entities = [Piece::class, PracticeSession::class, CatalogComposer::class, CatalogWork::class, CatalogCache::class], version = 2, exportSchema = true)
+@Database(entities = [Piece::class, PracticeSession::class, CatalogComposer::class, CatalogWork::class, CatalogCache::class, SavedRecording::class, BadgeUnlock::class], version = 3, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class OpusDatabase : RoomDatabase() {
     abstract fun dao(): OpusDao
     abstract fun catalogDao(): CatalogDao
+    abstract fun experienceDao(): ExperienceDao
     companion object {
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE catalog_works ADD COLUMN popular INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE catalog_works ADD COLUMN recommended INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pieces ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pieces ADD COLUMN instrument TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE pieces ADD COLUMN genre TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE pieces ADD COLUMN musicalEra TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN practiceDay TEXT")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN practiceZone TEXT")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN catalogWorkId TEXT")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN composerId TEXT")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN musicalEra TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE TABLE IF NOT EXISTS saved_recordings (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, workKey TEXT NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, performer TEXT NOT NULL, platform TEXT NOT NULL, savedAt INTEGER NOT NULL, preferred INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_saved_recordings_workKey ON saved_recordings(workKey)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS badge_unlocks (achievementId TEXT NOT NULL PRIMARY KEY, unlockedAt INTEGER NOT NULL)")
+            }
+        }
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE pieces ADD COLUMN catalogWorkId TEXT")
@@ -64,10 +96,25 @@ abstract class OpusDatabase : RoomDatabase() {
         }
     }
 }
-class OpusRepository(private val dao: OpusDao) {
+class OpusRepository(private val db: OpusDatabase, private val achievements: AchievementStore) {
+    private val dao = db.dao()
     val pieces = dao.observePieces()
     val sessions = dao.observeSessions()
-    suspend fun save(piece: Piece) = dao.save(piece)
-    suspend fun delete(piece: Piece) = dao.delete(piece)
-    suspend fun complete(session: PracticeSession) = dao.insert(session)
+    suspend fun save(piece: Piece) = db.withTransaction {
+        val existing = if (piece.id > 0) dao.piece(piece.id) else null
+        dao.save(piece.copy(createdAt = existing?.createdAt ?: piece.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis()))
+        achievements.evaluateInTransaction()
+    }
+    suspend fun delete(piece: Piece) = db.withTransaction { dao.delete(piece); achievements.evaluateInTransaction() }
+    suspend fun complete(session: PracticeSession) = db.withTransaction {
+        val piece = session.pieceId?.let { dao.piece(it) }
+        val sourceId = piece?.catalogWorkId ?: session.catalogWorkId
+        val work = sourceId?.let { db.catalogDao().work(it) }
+        val composer = work?.composerId?.let { db.catalogDao().composer(it) }
+        val zone = java.time.ZoneId.systemDefault()
+        dao.insert(session.copy(practiceDay = java.time.Instant.ofEpochMilli(session.completedAt).atZone(zone).toLocalDate().toString(),
+            practiceZone = zone.id, catalogWorkId = sourceId, composerId = composer?.id ?: session.composerId,
+            musicalEra = session.musicalEra.ifBlank { piece?.musicalEra.orEmpty() }.ifBlank { composer?.epoch.orEmpty() }))
+        achievements.evaluateInTransaction()
+    }
 }

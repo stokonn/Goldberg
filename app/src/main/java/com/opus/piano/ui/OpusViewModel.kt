@@ -15,7 +15,7 @@ class OpusViewModel(private val repository: OpusRepository, private val saved: S
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryState())
     private val _timer = MutableStateFlow(TimerState(
         elapsed = saved["elapsed"] ?: 0L,
-        selected = saved.get<Long>("pieceId")?.let { id -> Piece(id, saved["pieceTitle"] ?: "", "") }
+        selected = saved.get<Long>("pieceId")?.let { id -> Piece(id, saved["pieceTitle"] ?: "", saved["pieceComposer"] ?: "", catalogWorkId = saved["pieceCatalogId"], musicalEra = saved["pieceEra"] ?: "") }
     ))
     val timer = _timer.asStateFlow()
     private val _message = MutableStateFlow<String?>(null)
@@ -40,6 +40,18 @@ class OpusViewModel(private val repository: OpusRepository, private val saved: S
         _timer.update { it.copy(selected = piece) }
         saved["pieceId"] = piece?.id
         saved["pieceTitle"] = piece?.title
+        saved["pieceComposer"] = piece?.composer
+        saved["pieceCatalogId"] = piece?.catalogWorkId
+        saved["pieceEra"] = piece?.musicalEra
+    }
+    fun focus(piece: Piece): Boolean {
+        val current = _timer.value
+        if (current.saving || ((current.running || current.elapsed > 0) && current.selected?.id != piece.id)) {
+            _message.value = "Finish or discard the current session before changing its focus."
+            return false
+        }
+        select(piece)
+        return true
     }
     fun toggle() {
         if (_timer.value.saving) return
@@ -67,7 +79,7 @@ class OpusViewModel(private val repository: OpusRepository, private val saved: S
         _timer.update { it.copy(saving = true) }
         viewModelScope.launch {
             try {
-                repository.complete(PracticeSession(pieceId = snapshot.selected?.id, pieceTitle = snapshot.selected?.title ?: "Free practice", startedAt = sessionStart, completedAt = System.currentTimeMillis(), durationMillis = snapshot.elapsed))
+                repository.complete(PracticeSession(pieceId = snapshot.selected?.id, pieceTitle = snapshot.selected?.title ?: "Free practice", startedAt = sessionStart, completedAt = System.currentTimeMillis(), durationMillis = snapshot.elapsed, catalogWorkId = snapshot.selected?.catalogWorkId, composerId = snapshot.selected?.let { ComposerIdentity.resolve(it, emptyMap()) }, musicalEra = snapshot.selected?.musicalEra.orEmpty()))
                 _timer.update { it.copy(saving = false) }; reset()
                 _message.value = "Session saved. Every minute matters."
             } catch (_: Exception) { _timer.update { it.copy(saving = false) }; _message.value = "Could not save session. Your timer is preserved; please try again." }

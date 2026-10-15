@@ -9,20 +9,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 
-val Gold = Color(0xFFD4AF73)
-val Ivory = Color(0xFFF5F0E8)
+val Gold = Color(0xFFD4AF70)
+val Ivory = Color(0xFFF3EDE3)
 private val Palette = darkColorScheme(
     primary = Gold, onPrimary = Color(0xFF241D13), primaryContainer = Color(0xFF342C24), onPrimaryContainer = Ivory,
-    background = Color(0xFF101014), onBackground = Ivory,
-    surface = Color(0xFF1B1B21), onSurface = Ivory,
-    surfaceVariant = Color(0xFF27272F), onSurfaceVariant = Color(0xFFA6A1A8),
-    outline = Color(0xFF77717B), secondary = Color(0xFFD4AF73), error = Color(0xFFFFB4AB)
+    background = Color(0xFF10100F), onBackground = Ivory,
+    surface = Color(0xFF1B1A18), onSurface = Ivory,
+    surfaceVariant = Color(0xFF24221F), onSurfaceVariant = Color(0xFFA9A39A),
+    surfaceContainerLowest = Color(0xFF0D0D0C), surfaceContainerLow = Color(0xFF171614),
+    surfaceContainer = Color(0xFF1B1A18), surfaceContainerHigh = Color(0xFF24221F), surfaceContainerHighest = Color(0xFF2D2A25),
+    surfaceDim = Color(0xFF10100F), surfaceBright = Color(0xFF39362F),
+    secondaryContainer = Color(0xFF3F3526), onSecondaryContainer = Ivory,
+    outline = Color(0xFF777167), secondary = Color(0xFFD4AF70), error = Color(0xFFFFB4AB)
 )
 @Composable fun OpusTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = Palette, typography = Typography(
-        headlineLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 36.sp, lineHeight = 42.sp),
+        headlineLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 32.sp, lineHeight = 38.sp),
         headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontSize = 28.sp, lineHeight = 34.sp),
-        titleLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 23.sp, lineHeight = 29.sp),
+        titleLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 21.sp, lineHeight = 27.sp),
         labelSmall = TextStyle(fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Medium)
     ), shapes = Shapes(
         small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
