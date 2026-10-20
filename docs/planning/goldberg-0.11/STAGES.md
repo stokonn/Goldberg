@@ -77,3 +77,16 @@ Stage 3A implements only the safe local persistence bridge and separate catalogu
 ## Stage 3B implementation checkpoint
 
 The owner separately authorized [portable v5 and safe recovery](stage-3b/README.md). This branch adds the additive9→10 personal migration, format1–4 readers, UUID/settings/raw-recovery portability, completion evidence and durable preference replay. Acceptance is recorded in its own verification ledger. Stage4 remains a separate future instruction, with no automatic continuation, provider adapter, cloud deployment, main merge or release.
+
+## Stage 7 encyclopedia-UX checkpoint — 2026-10-20
+
+The owner's Stage 7 UI/UX instruction approves six 0.11 screens — Discover, Library /
+Your Collections, Artist Profile, Work / Composition Profile, Home (activity dashboard)
+and User Profile (musical identity) — with the four `stage-4/visual-references/` mockups
+as the design baseline for the first four and the 0.10/0.10.1 approvals plus the owner's
+instruction for Home/Profile. The Part A plan and acceptance matrix live in
+[stage-7/README.md](stage-7/README.md) and [stage-7/UI-ACCEPTANCE-MATRIX.md](stage-7/UI-ACCEPTANCE-MATRIX.md);
+the living checklist carries tasks 7.1–7.11. Part B (Android/Web Admin clients) remains
+gated on Stage 6 per the Stage 7 acceptance above. This checkpoint is planning evidence
+only: no Stage 7 implementation, build, screenshot or verification exists, and no Stage 6/7
+work, merge, tag or release was started by it.

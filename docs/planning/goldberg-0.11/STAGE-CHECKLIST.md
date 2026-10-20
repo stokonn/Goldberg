@@ -302,9 +302,52 @@ Mark ✅ only when all of the above have executed-passed evidence.
 **Status: ⬜ not started.** Requires a separate owner instruction; depends on D4/D5/D8 and a
 zero-cost operational plan. No provisioning, no client-side speculation.
 
-## Stage 7 — Encyclopedia UX and Android/Web Admin clients
+## Stage 7 — Encyclopedia UX (six-screen redesign) and Android/Web Admin clients
 
-**Status: ⬜ not started.** Depends on stable Stage 4/5 contracts and Stage 6 admin actions.
+**Status: 🚧 planning complete 2026-10-20; implementation not started.**
+Plan: [stage-7/README.md](stage-7/README.md) · Acceptance matrix:
+[stage-7/UI-ACCEPTANCE-MATRIX.md](stage-7/UI-ACCEPTANCE-MATRIX.md) · Approved direction:
+`docs/ai/DECISIONS.md` (Stage 7 section) + `stage-4/visual-references/` + `docs/design/goldberg-0.10*`.
+No Stage 7 code, build, screenshot or verification exists yet; mockups are design
+direction, not implemented screens.
+
+- **Purpose:** Bring the six owner-approved screens — Discover, Library / Your Collections,
+  Artist Profile, Work / Composition Profile, Home and User Profile — in line with the
+  approved editorial classical-music visual direction on top of the verified Stage 4
+  catalogue architecture and Stage 5 offline bundles, preserving all functional,
+  privacy and personal-data guarantees. All six screens belong to Goldberg 0.11.
+- **Scope (Part A):** presentation/UX changes in `ui/DiscoverScreen.kt`, `ui/RepertoireScreen.kt`,
+  `ui/ComposerScreen.kt`, `ui/CompositionScreen.kt`, `ui/BalancedHome.kt`, `ui/ProfileScreen.kt`,
+  shared `ui/EditorialComponents.kt`/`Theme.kt`, CZ/EN resources; Library tab label
+  restore (Library/Knihovna). **No** journal/database/backup/signing/package change; no
+  Stage 5 source edits; no provider/search architecture rewrite.
+- **Scope (Part B, gated):** Android/Web Admin clients depend on Stage 6 (D4/D5/D8) —
+  not part of the six-screen work, not started.
+
+**Tasks (Part A — implement only after separate owner authorization, after Stage 5
+tasks 5.10–5.13 close)**
+
+- [ ] 7.1 Discover visual refinement per `01-discover.png`: header, search, truthful privacy notice, categories, Recently Viewed, Available offline; local-first and explicit-online behavior unchanged.
+- [ ] 7.2 Library "Your Collections" per `02-library.png`: header, All/Works/Artists/Albums/Lists chips, offline-management entry point to Stage 5 UI, compact rows, Library/Knihovna tab label; repertoire data/prefs untouched.
+- [ ] 7.3 Artist Profile per `03-artist-profile.png`: licensed portrait or fallback, verified identity/roles/dates, short bio + Read More, Essential Works, Albums & Recordings, Sources & Credits; no fabricated content.
+- [ ] 7.4 Work Profile per `04-work-profile.png`: title/composer/catalogue ID, prominent Add to Repertoire (UUID-safe, duplicate-proof), compact metadata, Overview/Structure/Arrangements/Recordings/Sources with progressive disclosure; no invented data.
+- [ ] 7.5 Home redesign: greeting top-left, distinct quote block top-right, Today Practiced + Current Streak, seven-day graph, 1–2 Recently Practiced items, no-scroll target; remove gear/Favorite Artists/Start Practice/duplicates.
+- [ ] 7.6 Profile redesign: larger avatar/name, integrated About Me, Favorite Artist/Piece/Era, prominent Badge Showcase (max 5, direct selection from Profile); remove Practice History/"Your Musical Journey"/generic Customize; pencil + Settings gear kept.
+- [ ] 7.7 Shared design-system pass: Cormorant Garamond/Inter tokens, spacing, Ivory+Nocturne, CZ/EN plurals/dates, font-scale reflow, touch targets, reduced motion; no mockup assets in APK.
+- [ ] 7.8 Build + automated regression gates (Gradle host gate, `scripts/check_*.py`, new UI tests where meaningful).
+- [ ] 7.9 Emulator screenshots of all six screens (explicit emulator serial), light+dark, CZ+EN, normal+enlarged fonts, small screen.
+- [ ] 7.10 Screenshot-vs-reference comparison for all six screens; explicit mismatch report.
+- [ ] 7.11 Owner acceptance; then `docs/ai/*`, Issue #31/Project, Wiki/README sync. No merge/tag/release implied.
+
+**Verification (executed so far):** none. This stage's status comes from planning
+documentation only (this checklist entry, stage-7 plan, DECISIONS/HANDOFF updates); no
+builds, tests or emulator runs were performed for Stage 7, and no unchecked box above is
+implied done.
+
+**Progress:** planning/proposal prepared and applied 2026-10-20 on the isolated docs
+worktree/branch `docs/goldberg-0.11-stage-7-planning` (uncommitted, pending owner commit
+approval). Implementation deferred until authorization + Stage 5 completion. Part B
+(Admin clients) remains blocked on Stage 6.
 
 ## Stage 8 — Integration, legal review and release readiness
 

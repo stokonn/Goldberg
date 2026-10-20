@@ -122,4 +122,18 @@ tmpfs — keep large archives in `~/.cache`.
 Notebook (for 5.10/5.11): Arch Linux, Java 17, emulator 37.2.12, AVD `stage5-api36` with
 `ANDROID_AVD_HOME=/home/stokonn/.config/.android/avd`.
 
+## Stage 7 UI/UX planning checkpoint (2026-10-20, separate planning task)
+
+A planning-only task (separate agent, no shared-file edits) recovered and consolidated the
+owner-approved Stage 7 six-screen UI/UX direction: Discover, Library / Your Collections,
+Artist Profile, Work / Composition Profile, Home and User Profile — all Goldberg 0.11.
+Authoritative docs: `docs/planning/goldberg-0.11/stage-7/README.md` (plan),
+`stage-7/UI-ACCEPTANCE-MATRIX.md` (acceptance), Stage 7 section of
+`docs/planning/goldberg-0.11/STAGE-CHECKLIST.md` (tasks 7.1–7.11), and the Stage 7
+decisions block in `docs/ai/DECISIONS.md`. Approved references:
+`docs/planning/goldberg-0.11/stage-4/visual-references/` (Discover/Library/Artist/Work)
+plus `docs/design/goldberg-0.10*` and the owner's instruction (Home/Profile). **Stage 7
+implementation is not started and not authorized**; it waits for owner authorization and
+for Stage 5 tasks 5.10–5.13 to close. Do not treat any mockup as an implemented screen.
+
 created by stokonn with love <3
