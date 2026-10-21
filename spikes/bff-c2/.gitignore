@@ -1,0 +1,7 @@
+# C2 spike — never commit generated private key material or local runtime state.
+node_modules/
+.wrangler/
+fixtures/generated/
+results/raw/*.log
+*.log
+.dev.vars

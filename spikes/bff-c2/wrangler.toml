@@ -1,0 +1,28 @@
+# Goldberg 0.11 Stage 6 — C2 spike BFF worker — LOCAL DEV CONFIGURATION ONLY.
+#
+# ⚠ THIS WORKER IS NEVER DEPLOYED. `wrangler deploy` is forbidden for this
+# directory (C2-SPIKE-PLAN.md §1/§14). There is no account_id, no routes,
+# no production domain and no real credential anywhere in this file.
+# All values below are SYNTHETIC test configuration for127.0.0.1.
+
+name = "goldberg-c2-spike-bff"
+main = "src/worker.ts"
+compatibility_date = "2026-10-01"
+
+# Local dev defaults (overridable per-run by the scenario runner).
+[dev]
+port = 8787
+ip = "127.0.0.1"
+local_protocol = "http"
+
+[vars]
+STUB_URL = "http://127.0.0.1:8788"
+ISSUER = "https://stub.supabase.local/auth/v1"
+AUDIENCE = "authenticated"
+ALLOWED_ORIGINS = "https://admin.stub.local"
+SESSION_TTL_S = "900"
+STUB_TIMEOUT_MS = "2000"
+KILL_CACHE_MS = "5000"
+# SESSION_SECRET intentionally NOT here: it lives in .dev.vars (gitignored,
+# regenerated per run by tools/gen-fixtures.mjs) so wrangler dev's startup
+# bindings table never echoes it into local logs. Synthetic-only value.

@@ -1,0 +1,885 @@
+{
+  "runId": "2026-10-21T13:30:08.736Z",
+  "commit": "2de30960fa8d99986b7aa621102ff5a21575ffe3",
+  "versions": {
+    "node": "v22.23.1",
+    "wrangler": "4.151.3",
+    "workerd": "1.20261019.1",
+    "typescript": "5.9.3"
+  },
+  "scenarios": [
+    {
+      "id": "S1",
+      "title": "Valid administrator session",
+      "threat": "(baseline)",
+      "executed": true,
+      "pass": "PASS",
+      "details": "queue=200 decide=201 decisions 0→1",
+      "evidence": {
+        "cpuMs": 3,
+        "wallMs": 9.651433999999426,
+        "csp": true
+      }
+    },
+    {
+      "id": "S2",
+      "title": "Authenticated non-administrator hits admin endpoint",
+      "threat": "T5-adjacent",
+      "executed": true,
+      "pass": "PASS",
+      "details": "status=403 code=forbidden state unchanged=true",
+      "evidence": {}
+    },
+    {
+      "id": "S3",
+      "title": "Missing/malformed credentials",
+      "threat": "T1",
+      "executed": true,
+      "pass": "PASS",
+      "details": "no-cookie=401 malformed-cookie=401",
+      "evidence": {}
+    },
+    {
+      "id": "S4",
+      "title": "Expired session token and expired session row",
+      "threat": "T1",
+      "executed": true,
+      "pass": "PASS",
+      "details": "expired-JWT=401 expired-row=401",
+      "evidence": {}
+    },
+    {
+      "id": "S5",
+      "title": "Invalid token signature (wrong key / wrong cookie secret)",
+      "threat": "T2",
+      "executed": true,
+      "pass": "PASS",
+      "details": "handover=401 session-cookie=401",
+      "evidence": {}
+    },
+    {
+      "id": "S6",
+      "title": "Wrong issuer / wrong audience",
+      "threat": "T4",
+      "executed": true,
+      "pass": "PASS",
+      "details": "iss=401 aud=401",
+      "evidence": {}
+    },
+    {
+      "id": "S7",
+      "title": "Unknown signing key (kid)",
+      "threat": "T2",
+      "executed": true,
+      "pass": "PASS",
+      "details": "status=401 (fail-closed after bounded re-fetch)",
+      "evidence": {}
+    },
+    {
+      "id": "S8",
+      "title": "JWKS rotation and cache-window expiry",
+      "threat": "T2",
+      "executed": true,
+      "pass": "PASS",
+      "details": "initial=200 cached-within-window=200 old-key-after-window=401 new-key=200",
+      "evidence": {}
+    },
+    {
+      "id": "S9",
+      "title": "alg=none and algorithm-confusion attempts",
+      "threat": "T2",
+      "executed": true,
+      "pass": "PASS",
+      "details": "alg-none=401 confusion=401",
+      "evidence": {}
+    },
+    {
+      "id": "S10",
+      "title": "Revoked administrator role effective at next request",
+      "threat": "T5",
+      "executed": true,
+      "pass": "PASS",
+      "details": "before=200 after=403 JWT still valid=true (revocation did not wait for expiry)",
+      "evidence": {}
+    },
+    {
+      "id": "S11",
+      "title": "Suspended account (at handover and mid-session)",
+      "threat": "T5",
+      "executed": true,
+      "pass": "PASS",
+      "details": "handover=403 active=200 mid-session-suspend=403",
+      "evidence": {}
+    },
+    {
+      "id": "S12",
+      "title": "Invalid/missing CSRF token",
+      "threat": "T15",
+      "executed": true,
+      "pass": "PASS",
+      "details": "missing=403 mismatch=403 state unchanged=true",
+      "evidence": {}
+    },
+    {
+      "id": "S13",
+      "title": "Cross-origin request rejected; foreign CORS refused",
+      "threat": "T15",
+      "executed": true,
+      "pass": "PASS",
+      "details": "evil-origin=403 preflight=404 ACAO echoed=false",
+      "evidence": {}
+    },
+    {
+      "id": "S14",
+      "title": "Simulated backend timeout (blackhole) → truthful503",
+      "threat": "T20",
+      "executed": true,
+      "pass": "PASS",
+      "details": "api=503 (service_unavailable) static-route=200 wall=2008ms",
+      "evidence": {}
+    },
+    {
+      "id": "S15",
+      "title": "Simulated backend unavailability (5xx burst)",
+      "threat": "T20",
+      "executed": true,
+      "pass": "PASS",
+      "details": "api=503 static=200 internals leaked=false",
+      "evidence": {}
+    },
+    {
+      "id": "S16",
+      "title": "Simulated quota exhaustion + kill switch denies intake",
+      "threat": "T20 (+T16 rehearsal)",
+      "executed": true,
+      "pass": "PASS",
+      "details": "quota=503 kill-write=503 read-while-killed=200 (no escalation path exists in code)",
+      "evidence": {}
+    },
+    {
+      "id": "S17",
+      "title": "Replay of logged-out and revoked sessions",
+      "threat": "T3 (BFF layer) + AUTH.md §3",
+      "executed": true,
+      "pass": "PASS",
+      "details": "logout=200 cookie-replay=401 revoked-row-reuse=401 (refresh-family rotation remains Supabase-managed, out of spike scope)",
+      "evidence": {}
+    },
+    {
+      "id": "S18",
+      "title": "Logout then subsequent access rejected",
+      "threat": "AUTH.md §3",
+      "executed": true,
+      "pass": "PASS",
+      "details": "before-logout=200 after-logout=401",
+      "evidence": {}
+    },
+    {
+      "id": "S19",
+      "title": "No privileged secrets/tokens in responses; cookie flags + CSP",
+      "threat": "D8b invariant",
+      "executed": true,
+      "pass": "PASS",
+      "details": "corpus=22 responses; secret-hits={\"privateKeyMaterial\":false,\"sessionSecret\":false,\"serviceRole\":false,\"supabaseTokenEcho\":false,\"stackTrace\":false}; sid-flags-ok=true; CSP-on-all=true",
+      "evidence": {
+        "hits": {
+          "privateKeyMaterial": false,
+          "sessionSecret": false,
+          "serviceRole": false,
+          "supabaseTokenEcho": false,
+          "stackTrace": false
+        },
+        "cookieFlags": true,
+        "cspEverywhere": true
+      }
+    }
+  ],
+  "perf": {
+    "P1": {
+      "scenario": "warm happy path (GET /v1/admin/queue)",
+      "runs": [
+        {
+          "cpu": {
+            "p50": 3,
+            "p95": 4,
+            "p99": 6,
+            "max": 14,
+            "min": 3,
+            "n": 1000
+          },
+          "wall": {
+            "p50": 9.504707000000053,
+            "p95": 11.275358000006236,
+            "p99": 19.068315000004077,
+            "max": 25.647455999998783,
+            "min": 7.7354080000004615,
+            "n": 1000
+          },
+          "statuses": {
+            "200": 1000
+          }
+        },
+        {
+          "cpu": {
+            "p50": 3,
+            "p95": 4,
+            "p99": 5,
+            "max": 16,
+            "min": 2,
+            "n": 1000
+          },
+          "wall": {
+            "p50": 8.994822000000568,
+            "p95": 10.825836999996682,
+            "p99": 20.4320760000046,
+            "max": 32.98440899999696,
+            "min": 6.877164999998058,
+            "n": 1000
+          },
+          "statuses": {
+            "200": 1000
+          }
+        },
+        {
+          "cpu": {
+            "p50": 3,
+            "p95": 4,
+            "p99": 5,
+            "max": 17,
+            "min": 2,
+            "n": 1000
+          },
+          "wall": {
+            "p50": 9.031260999996448,
+            "p95": 10.66543300000194,
+            "p99": 19.112919999999576,
+            "max": 25.740271000002394,
+            "min": 6.98500800000329,
+            "n": 1000
+          },
+          "statuses": {
+            "200": 1000
+          }
+        }
+      ],
+      "pooled": {
+        "cpu": {
+          "p50": 3,
+          "p95": 4,
+          "p99": 6,
+          "max": 17,
+          "min": 2,
+          "n": 3000
+        },
+        "wall": {
+          "p50": 9.161657000004197,
+          "p95": 11.105336000000534,
+          "p99": 19.969279999997525,
+          "max": 32.98440899999696,
+          "min": 6.877164999998058,
+          "n": 3000
+        },
+        "statuses": {
+          "200": 3000
+        }
+      },
+      "handlerClockNote": "handler clock at conc=1 = per-invocation UPPER BOUND (includes awaited stub I/O + 1 ms quantization; production CPU clock excludes I/O waits)",
+      "kernelCpuPerRequestSeqMs": 2.03,
+      "kernelCpuPerRequestConc8Ms": 2.07,
+      "kernelBatchSeq": {
+        "pid": "1101987",
+        "requests": 1000,
+        "concurrency": 1,
+        "wallMs": 9232.7,
+        "cpuTicks": 203,
+        "cpuPerRequestMs": 2.03,
+        "tickQuantizationErrorPct": 4.93
+      },
+      "kernelBatchConc8": {
+        "pid": "1101987",
+        "requests": 1000,
+        "concurrency": 8,
+        "wallMs": 5912.6,
+        "cpuTicks": 207,
+        "cpuPerRequestMs": 2.07,
+        "tickQuantizationErrorPct": 4.83
+      },
+      "targetCheck": {
+        "kernelAvgLteP50Target": true,
+        "upperBoundMaxLte10msCeiling": false,
+        "upperBoundP99Lte8": true
+      }
+    },
+    "P1cdp": {
+      "ok": true,
+      "requests": 200,
+      "wallTotalMs": 1821.2,
+      "wallPerRequestMs": 9.106,
+      "profileWindowMs": 1843.4,
+      "jsCpuMs": 1330.5,
+      "programCpuMs": 169.7,
+      "idleMs": 343.2,
+      "jsCpuPerRequestMs": 6.653,
+      "jsPlusProgramPerRequestMs": 7.501,
+      "sampleCount": 846,
+      "intervalUs": "n/a"
+    },
+    "P2": {
+      "scenario": "cold start ×20 fresh processes (cold JWKS + cold session key)",
+      "coldSigninHandlerClock": {
+        "p50": 6,
+        "p95": 6,
+        "p99": 6,
+        "max": 6,
+        "min": 5,
+        "n": 20
+      },
+      "coldQueueHandlerClock": {
+        "p50": 4,
+        "p95": 5,
+        "p99": 5,
+        "max": 5,
+        "min": 3,
+        "n": 20
+      },
+      "readyToServeMs": {
+        "p50": 1970.2894019999949,
+        "p95": 1988.073285999999,
+        "p99": 2005.1076130000001,
+        "max": 2005.1076130000001,
+        "min": 1962.7333429999999,
+        "n": 20
+      },
+      "processCpuTicksPerColdProcess": {
+        "p50": 0,
+        "p95": 1,
+        "p99": 1,
+        "max": 1,
+        "min": 0,
+        "n": 20
+      },
+      "coldNote": "per-invocation kernel CPU is below the 10 ms tick resolution for single cold requests; per-process ticks include isolate init and are reported as totals; handler clock is the upper bound",
+      "allOk": true,
+      "sample": [
+        {
+          "readyMs": 1971.3512520000077,
+          "signinCpu": 5,
+          "signinWall": 11.731920999998692,
+          "queueCpu": 3,
+          "queueWall": 9.635513999994146,
+          "statuses": [
+            200,
+            200
+          ],
+          "procTicks": 1,
+          "coldPidFound": true
+        },
+        {
+          "readyMs": 1964.5048259999894,
+          "signinCpu": 6,
+          "signinWall": 20.083745999989333,
+          "queueCpu": 5,
+          "queueWall": 11.133780000003753,
+          "statuses": [
+            200,
+            200
+          ],
+          "procTicks": 0,
+          "coldPidFound": true
+        },
+        {
+          "readyMs": 1988.073285999999,
+          "signinCpu": 5,
+          "signinWall": 12.285558999996283,
+          "queueCpu": 4,
+          "queueWall": 10.316082000004826,
+          "statuses": [
+            200,
+            200
+          ],
+          "procTicks": 1,
+          "coldPidFound": true
+        }
+      ]
+    },
+    "P3": {
+      "scenario": "JWKS cold vs warm (RS256 verify path at handover)",
+      "coldCpu": {
+        "p50": 6,
+        "p95": 6,
+        "p99": 6,
+        "max": 6,
+        "min": 5,
+        "n": 20
+      },
+      "warmCpu": {
+        "p50": 3,
+        "p95": 4,
+        "p99": 16,
+        "max": 85,
+        "min": 2,
+        "n": 200
+      },
+      "coldVsWarmMedianDeltaMs": 3,
+      "note": "handler-clock values (upper bounds); cold includes JWKS fetch wait + first RSA key import; warm = cached CryptoKey + RS256 verify only"
+    },
+    "P4": {
+      "scenario": "latency sweep 0/5/25/100 ms — CPU-independence validity check",
+      "sweep": {
+        "0": {
+          "cpu": {
+            "p50": 31,
+            "p95": 43,
+            "p99": 44,
+            "max": 45,
+            "min": 4,
+            "n": 100
+          },
+          "wall": {
+            "p50": 42.828979999991134,
+            "p95": 105.69078900001477,
+            "p99": 130.49382699999842,
+            "max": 131.49654399999417,
+            "min": 17.560350999992806,
+            "n": 100
+          },
+          "statuses": {
+            "200": 100
+          },
+          "kernelCpuPerRequestMs": 1.9,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 100,
+            "concurrency": 8,
+            "wallMs": 633.4,
+            "cpuTicks": 19,
+            "cpuPerRequestMs": 1.9,
+            "tickQuantizationErrorPct": 52.63
+          }
+        },
+        "5": {
+          "cpu": {
+            "p50": 34,
+            "p95": 43,
+            "p99": 48,
+            "max": 49,
+            "min": 26,
+            "n": 100
+          },
+          "wall": {
+            "p50": 46.06097600000794,
+            "p95": 56.450998000014806,
+            "p99": 65.25474899998517,
+            "max": 69.12862899998436,
+            "min": 37.123912999988534,
+            "n": 100
+          },
+          "statuses": {
+            "200": 100
+          },
+          "kernelCpuPerRequestMs": 1.8,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 100,
+            "concurrency": 8,
+            "wallMs": 561.4,
+            "cpuTicks": 18,
+            "cpuPerRequestMs": 1.8,
+            "tickQuantizationErrorPct": 55.56
+          }
+        },
+        "25": {
+          "cpu": {
+            "p50": 108,
+            "p95": 114,
+            "p99": 115,
+            "max": 115,
+            "min": 104,
+            "n": 100
+          },
+          "wall": {
+            "p50": 116.66520799999125,
+            "p95": 124.33012299999245,
+            "p99": 129.66060999999172,
+            "max": 129.85972700000275,
+            "min": 110.11780700000236,
+            "n": 100
+          },
+          "statuses": {
+            "200": 100
+          },
+          "kernelCpuPerRequestMs": 1.8,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 100,
+            "concurrency": 8,
+            "wallMs": 1539.3,
+            "cpuTicks": 18,
+            "cpuPerRequestMs": 1.8,
+            "tickQuantizationErrorPct": 55.56
+          }
+        },
+        "100": {
+          "cpu": {
+            "p50": 408,
+            "p95": 421,
+            "p99": 435,
+            "max": 441,
+            "min": 404,
+            "n": 100
+          },
+          "wall": {
+            "p50": 417.22242299999925,
+            "p95": 440.33451099999365,
+            "p99": 448.20678899998893,
+            "max": 449.17331700000796,
+            "min": 409.76733499998227,
+            "n": 100
+          },
+          "statuses": {
+            "200": 100
+          },
+          "kernelCpuPerRequestMs": 2.1,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 100,
+            "concurrency": 8,
+            "wallMs": 5418,
+            "cpuTicks": 21,
+            "cpuPerRequestMs": 2.1,
+            "tickQuantizationErrorPct": 47.62
+          }
+        }
+      },
+      "kernelCpuFlatWithinTolerance": true,
+      "handlerClockTracksLatency": true,
+      "handlerClockNote": "handler clock tracks injected latency as previously shown → NOT a CPU metric; recorded for transparency",
+      "wallGrewMonotonically": true
+    },
+    "P5": {
+      "scenario": "error paths (5xx / quota / blackhole)",
+      "out": {
+        "five_xx": {
+          "cpu": {
+            "p50": 7,
+            "p95": 12,
+            "p99": 13,
+            "max": 13,
+            "min": 1,
+            "n": 50
+          },
+          "wall": {
+            "p50": 22.89759100001538,
+            "p95": 39.894616000005044,
+            "p99": 43.08856099998229,
+            "max": 43.08856099998229,
+            "min": 9.107003999990411,
+            "n": 50
+          },
+          "statuses": {
+            "503": 50
+          }
+        },
+        "quota": {
+          "cpu": {
+            "p50": 10,
+            "p95": 13,
+            "p99": 15,
+            "max": 15,
+            "min": 1,
+            "n": 50
+          },
+          "wall": {
+            "p50": 24.99244600001839,
+            "p95": 30.481933999981266,
+            "p99": 31.392147000005934,
+            "max": 31.392147000005934,
+            "min": 10.483409000007669,
+            "n": 50
+          },
+          "statuses": {
+            "503": 50
+          }
+        },
+        "blackhole": {
+          "cpu": {
+            "p50": 2002,
+            "p95": 2003,
+            "p99": 2004,
+            "max": 2004,
+            "min": 2000,
+            "n": 20
+          },
+          "wall": {
+            "p50": 2017.4205030000012,
+            "p95": 2022.714380999998,
+            "p99": 2022.7539760000072,
+            "max": 2022.7539760000072,
+            "min": 2007.746375000017,
+            "n": 20
+          },
+          "statuses": {
+            "503": 20
+          }
+        }
+      },
+      "kernelCpuPerRequest5xxMs": 1.9,
+      "kernelBatch5xx": {
+        "pid": "1101987",
+        "requests": 100,
+        "concurrency": 8,
+        "wallMs": 329,
+        "cpuTicks": 19,
+        "cpuPerRequestMs": 1.9,
+        "tickQuantizationErrorPct": 52.63
+      },
+      "note": "error paths short-circuit early; CPU expected ≤ happy path"
+    },
+    "P6": {
+      "scenario": "concurrency 1/5/20 (local workerd contention semantics)",
+      "out": {
+        "1": {
+          "cpu": {
+            "p50": 3,
+            "p95": 4,
+            "p99": 5,
+            "max": 29,
+            "min": 2,
+            "n": 500
+          },
+          "wall": {
+            "p50": 9.22137099999236,
+            "p95": 10.871062000020174,
+            "p99": 21.096343000011984,
+            "max": 38.432419999997364,
+            "min": 7.210605000000214,
+            "n": 500
+          },
+          "statuses": {
+            "200": 500
+          },
+          "kernelCpuPerRequestMs": 2.04,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 500,
+            "concurrency": 1,
+            "wallMs": 4573.8,
+            "cpuTicks": 102,
+            "cpuPerRequestMs": 2.04,
+            "tickQuantizationErrorPct": 9.8
+          }
+        },
+        "5": {
+          "cpu": {
+            "p50": 19,
+            "p95": 27,
+            "p99": 34,
+            "max": 35,
+            "min": 4,
+            "n": 500
+          },
+          "wall": {
+            "p50": 29.8226769999892,
+            "p95": 41.82886700000381,
+            "p99": 47.14470699999947,
+            "max": 62.460470000019995,
+            "min": 14.089822999987518,
+            "n": 500
+          },
+          "statuses": {
+            "200": 500
+          },
+          "kernelCpuPerRequestMs": 2.14,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 500,
+            "concurrency": 5,
+            "wallMs": 3111.2,
+            "cpuTicks": 107,
+            "cpuPerRequestMs": 2.14,
+            "tickQuantizationErrorPct": 9.35
+          }
+        },
+        "20": {
+          "cpu": {
+            "p50": 76,
+            "p95": 90,
+            "p99": 94,
+            "max": 95,
+            "min": 6,
+            "n": 500
+          },
+          "wall": {
+            "p50": 96.98945900000399,
+            "p95": 111.42294400001992,
+            "p99": 118.02941700001247,
+            "max": 118.99248899999657,
+            "min": 13.693715000001248,
+            "n": 500
+          },
+          "statuses": {
+            "200": 500
+          },
+          "kernelCpuPerRequestMs": 1.88,
+          "kernelBatch": {
+            "pid": "1101987",
+            "requests": 500,
+            "concurrency": 20,
+            "wallMs": 2335.5,
+            "cpuTicks": 94,
+            "cpuPerRequestMs": 1.88,
+            "tickQuantizationErrorPct": 10.64
+          }
+        }
+      },
+      "note": "handler-clock percentiles inflate with concurrency (event-loop scheduling waits, not CPU); compare kernelCpuPerRequestMs across levels"
+    },
+    "P7": {
+      "scenario": "stability: 10000 sequential-page requests at concurrency 10",
+      "total": 10000,
+      "errors": 0,
+      "wallTotalS": "60.2",
+      "kernelCpuTicksTotal": 2054,
+      "kernelCpuPerRequestMs": 2.054,
+      "idleBaselineAfter": {
+        "pid": "1101987",
+        "windowMs": 3001,
+        "ticks": 0,
+        "ticksPerMs": 0
+      },
+      "handlerClockFirst1k": {
+        "p50": 42,
+        "p95": 57,
+        "p99": 75,
+        "max": 89,
+        "min": 3,
+        "n": 1000
+      },
+      "handlerClockLast1k": {
+        "p50": 40,
+        "p95": 54,
+        "p99": 83,
+        "max": 138,
+        "min": 3,
+        "n": 1000
+      },
+      "driftPct": -4.761904761904762,
+      "rssKbBefore": 1037008,
+      "rssKbAfter": 1422424
+    }
+  },
+  "cpuProbe": {
+    "wranglerJsonLogCpuAccounting": false,
+    "wranglerCpuLogSamples": [],
+    "spanStoreProbe": {
+      "inspectorReachable": true,
+      "queried": true,
+      "rows": [
+        [
+          "GET",
+          1,
+          "ok",
+          {}
+        ],
+        [
+          "GET",
+          3,
+          "ok",
+          {}
+        ],
+        [
+          "GET",
+          2,
+          "ok",
+          {}
+        ]
+      ],
+      "hasCpuAttribute": false,
+      "finding": "local span store exposes duration_ms (wall) only — no CPU accounting"
+    },
+    "inWorkerClock": {
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "allIntegerMs": true,
+      "resolution": "1 ms (integer) — too coarse for 3 ms-class targets"
+    },
+    "kernelAccounting": {
+      "workerdPid": "1101987",
+      "idleBaseline": {
+        "pid": "1101987",
+        "windowMs": 3000,
+        "ticks": 0,
+        "ticksPerMs": 0
+      },
+      "finding": "OS utime+stime of the workerd process; awaited I/O not counted ⇒ true CPU; 10 ms tick granularity"
+    },
+    "adoptedStrategy": "PRIMARY: kernel /proc accounting (trustworthy aggregate CPU per invocation). SECONDARY: in-worker handler clock (includes awaited I/O; production excludes I/O ⇒ conservative per-invocation UPPER BOUND; 1 ms resolution). CROSS-CHECK: CDP V8 profiler via workerd inspector (frames-on-stack; also an upper bound)."
+  },
+  "validity": {
+    "kernelCpuPerRequestAt0ms": 2.1,
+    "kernelCpuPerRequestAt100ms": 2.5,
+    "kernelBatches": {
+      "at0ms": {
+        "pid": "1101987",
+        "requests": 100,
+        "concurrency": 1,
+        "wallMs": 1041.9,
+        "cpuTicks": 21,
+        "cpuPerRequestMs": 2.1,
+        "tickQuantizationErrorPct": 47.62
+      },
+      "at100ms": {
+        "pid": "1101987",
+        "requests": 40,
+        "concurrency": 1,
+        "wallMs": 16524.1,
+        "cpuTicks": 10,
+        "cpuPerRequestMs": 2.5,
+        "tickQuantizationErrorPct": 100
+      }
+    },
+    "kernelMetricFlatUnderLatency": true,
+    "handlerClockMedianAt0ms": 4,
+    "handlerClockMedianAt100ms": 407,
+    "handlerClockTracksLatency": true,
+    "wallMedianAt0ms": 9.619494000000486,
+    "wallMedianAt100ms": 413.69436700000006,
+    "verdict": "KERNEL accounting VALID as primary CPU metric (excludes injected latency); in-worker clock confirmed to include awaited I/O -> upper bound only"
+  },
+  "logScan": {
+    "logLinesCaptured": 20757,
+    "privateKeyMaterialInLogs": false,
+    "sessionSecretInLogs": false,
+    "devVarsSecretHiddenInLogs": true,
+    "wranglerCpuAccountingLines": 0,
+    "cpuAccountingSamples": [],
+    "requestLogSamples": []
+  },
+  "memory": {
+    "rssKbBefore": 1037008,
+    "rssKbAfter": 1422424,
+    "source": "sum of workerd process RSS (kB)"
+  },
+  "corpusSize": 22,
+  "sidTokenSamplePrefix": "eyJhbGciOiJIUzI1NiIs…(synthetic)"
+}
