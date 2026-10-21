@@ -327,6 +327,17 @@ model, zero-cost ops, decision register, handoff); the authoritative task list i
 [stage-6/CHECKLIST.md](stage-6/CHECKLIST.md) — **every implementation task there is
 unchecked.**
 
+> **C2 spike execution note (2026-10-21, owner-authorized):** the isolated local
+> CPU/auth feasibility spike was **executed → CONDITIONAL PASS** on branch
+> `spike/goldberg-0.11-c2-bff` (`d2ce77b`), all work under `spikes/bff-c2/`:
+> S1–S19 **19/19 PASS**, P1–P7 fully executed, kernel-accounted CPU
+> **2.03 ms/invocation** vs the 10 ms Workers Free ceiling (re-verified
+> 2026-10-21). This does **not** start Stage 6 production implementation and does
+> **not** close task 6.0f: the §12 owner-gated production-runtime verification
+> (real Cloudflare deployment, real Supabase latency, real cold starts,
+> per-request CPU percentiles) remains unexecuted; C3/C4 remain open.
+> Evidence: `spikes/bff-c2/results/SUMMARY.md`.
+
 **Owner decision review (2026-10-21), outcomes recorded in
 [stage-6/OPEN-DECISIONS.md](stage-6/OPEN-DECISIONS.md):**
 

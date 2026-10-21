@@ -161,3 +161,31 @@ pre-launch gates, and separately authorized provisioning (6.0d) / OAuth console 
 (6.0e). Nothing above in the Stage 5 handoff changes.
 
 created by stokonn with love <3
+
+---
+
+## ADDITIVE NOTE — 2026-10-21, after C2 spike execution (authoritative)
+
+The owner-authorized isolated **C2 CPU/auth spike was executed** on branch
+`spike/goldberg-0.11-c2-bff` (code+evidence commit `d2ce77b`, branched from
+planning head `2de3096`). Everything lives under `spikes/bff-c2/`.
+
+- **Result: CONDITIONAL PASS** — S1–S19 **19/19 PASS**; P1–P7 fully executed;
+  trustworthy kernel-accounted CPU **2.03 ms/invocation** (flat under latency
+  injection/concurrency; 2.054 ms over 10 000 requests, 0 errors) vs the 10 ms
+  Workers Free ceiling; conservative per-invocation upper bounds p50 3 / p95 4 /
+  p99 6 ms. Evidence + limitations: `spikes/bff-c2/results/SUMMARY.md`
+  (failed attempts preserved in `results/FAILURE-LOG.md`).
+
+**Resume steps if a future session continues this work:**
+
+1. `AGENTS.md` → `docs/planning/goldberg-0.11/stage-6/CHECKLIST.md` (6.0f note)
+   → `spikes/bff-c2/results/SUMMARY.md` → GitHub Issue #31 (open, in progress).
+2. The only outstanding C2 item is the **owner-gated §12 production-runtime
+   verification** (real Cloudflare deployment, real Supabase eu-central-1
+   latency, real cold starts, per-request CPU percentiles). It requires a
+   separate explicit owner authorization — do NOT start it unprompted.
+3. Do NOT promote spike code into production, do NOT run `wrangler deploy`,
+   do NOT close 6.0f/C2/C3/C4 from local evidence alone.
+
+The Stage 5 resume steps above remain obsolete/frozen as previously noted.

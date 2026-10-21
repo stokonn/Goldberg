@@ -1,5 +1,9 @@
 # Goldberg 0.11 — Stage 5 VERIFICATION ledger
 
+> **NOTE (2026-10-21, Stage 6 C2 spike execution):** an additive Stage 6 C2
+> executed/not-executed ledger was appended at the **end** of this file; the
+> frozen Stage 5 historical record below is unchanged.
+
 > **NOTE (2026-10-21, Stage 6 planning branch):** frozen historical ledger from before
 > Stage 5 completion. Stage 5 is COMPLETE and owner-approved (2026-10-21); the final
 > executed/not-executed record (incl. runs 39557624554 and 39576173002) lives on
@@ -110,3 +114,39 @@ Host gate executed this session (2026-10-20, desktop):
 - androidTest compile: **0 errors**; warnings: 7+ nullable `listFiles()` receivers (runner
   test), 1 pre-existing `Stage3bBackupTest` reified-type warning.
 - Installed-on-emulator app APK is stale (Oct 16) — reinstall fresh APKs before running tests.
+
+---
+
+## Stage 6 — C2 CPU/auth spike ledger (2026-10-21, owner-authorized execution)
+
+Isolated branch `spike/goldberg-0.11-c2-bff` from planning head `2de3096`;
+code+evidence commit `d2ce77b`. Everything under `spikes/bff-c2/`. Loopback-only
+(127.0.0.1), synthetic identities, per-run generated keys (gitignored, never
+committed), no accounts, nothing deployed (`wrangler deploy` never run).
+Authoritative report: `spikes/bff-c2/results/SUMMARY.md`; failed attempts
+preserved in `spikes/bff-c2/results/FAILURE-LOG.md`.
+
+### EXECUTED
+
+| # | Action | Result |
+|---|---|---|
+| 1 | Workers Free CPU ceiling re-verification (official pricing page, last updated Oct 2, 2026; retrieved 2026-10-21) | **EXECUTED** — 10 ms per invocation confirmed |
+| 2 | CPU-metric investigation (plan §7): wrangler dev logs, local observability span store, in-worker `performance.now()`, CDP V8 profiler, OS accounting | **EXECUTED** — logs/span-store carry wall only; in-worker clock quantized to 1 ms AND includes awaited I/O (4→407 ms under 100 ms injection); CDP = frames-on-stack upper bound; **kernel `/proc` accounting adopted (true CPU, awaited I/O excluded)** |
+| 3 | CPU validity check: kernel CPU per request at 0 ms vs 100 ms injected stub latency | **EXECUTED** — 2.1 vs 2.5 ms, flat ⇒ kernel metric VALID; handler clock tracked latency (documented contamination) |
+| 4 | Security scenarios S1–S19 (final run) | **EXECUTED — 19/19 PASS** (incl. JWKS rotation window, alg=none/confusion, immediate revocation/suspension, CSRF/origin, blackhole/5xx/quota/kill-switch, replay, secret scan of a 22-response corpus + 20 757 log lines) |
+| 5 | Performance scenarios P1–P7 | **EXECUTED** — P1 kernel 2.03 ms/req (seq) & 2.07 (conc 8), handler upper bounds p50 3 / p95 4 / p99 6 ms, CDP 6.65 ms/req; P2 cold starts ×20 (ready-to-serve p50 1 970 ms, dev-tooling artifact); P3 JWKS cold 6 vs warm 3 ms handler clock; P4 kernel flat 1.9–2.1 ms across 0/5/25/100 ms; P5 error paths all truthful 503, kernel 1.9 ms; P6 kernel flat at concurrency 1/5/20; P7 10 000 requests, 0 errors, kernel 2.054 ms, drift −4.8 % |
+| 6 | Failure investigation + fixes across 3 runs (stub filter bug, control-reset early-return, sign-in-after-fault ordering, kill-cache TTL, worker `eq.` prefix, JWKS window adoption, GC-settling warm-up, secret moved to gitignored `.dev.vars`) | **EXECUTED** — all fixed, rerun, 19/19; evidence preserved, nothing hidden |
+| 7 | Secret/hygiene scan: private keys in git, secrets in responses/logs | **EXECUTED** — 0 keys committed (per-run, gitignored), 0 secret occurrences in responses/logs |
+
+### NOT EXECUTED (no claim)
+
+- **§12 production-runtime verification** — no Cloudflare deployment, no real
+  Workers CPU percentiles, no real Supabase eu-central-1 latency, no production
+  cold starts. Per-invocation CPU **percentiles** were not directly measurable
+  locally (aggregate kernel accounting + conservative upper bounds only).
+- Real Google OAuth / real Supabase project / any account or provisioning.
+- Production Stage 6 implementation (6.1+), Android changes, Stage 7.
+- Task 6.0f closure — the gate stays **unchecked** (C2 local evidence obtained;
+  production-runtime evidence outstanding; C3/C4 open).
+
+created by stokonn with love <3

@@ -60,6 +60,20 @@ pre-launch gates.**
   ceiling; full T1–T5/T15/T20 security matrix). **Spike UNEXECUTED — executing it
   (code, harness, fixtures, dependencies, tests) requires a separate explicit owner
   authorization.** C3 and C4 remain open.
+  ➡ **Update 2026-10-21 (owner authorized execution): C2 SPIKE EXECUTED →
+  CONDITIONAL PASS** — isolated branch `spike/goldberg-0.11-c2-bff`, code+evidence
+  commit `d2ce77b`, everything under `spikes/bff-c2/` (loopback-only, synthetic
+  identities, per-run keys, nothing deployed, no accounts). S1–S19 **19/19 PASS**;
+  P1–P7 fully executed; trustworthy kernel-accounted CPU **2.03 ms/invocation**
+  (flat under latency injection, concurrency and a 10 000-request stability run)
+  vs the 10 ms ceiling; conservative per-invocation upper bounds p50 3 / p95 4 /
+  p99 6 ms. Evidence: `spikes/bff-c2/results/SUMMARY.md` (+ `FAILURE-LOG.md`
+  preserving failed attempts). **Gate stays unchecked:** the §12 production-runtime
+  verification (real Cloudflare deployment, real Supabase latency, real cold
+  starts, per-request CPU percentiles) remains owner-gated and unexecuted, and
+  production code will add logic beyond the measured minimal pipeline.
+  **C2 condition: satisfied locally, INCONCLUSIVE for production pending §12.**
+  C3/C4 remain open.
 
 - [x] 6.0a [ ] 6.0b [x] 6.0c (D8b proof gate 6.0f still open) [ ] 6.0d [ ] 6.0e [ ] 6.0f
 
@@ -157,5 +171,25 @@ pre-launch gates.**
   verification gate). **Spike remains UNEXECUTED** — no code, harness, fixtures,
   dependencies or tests exist or were run. 6.0f stays **unchecked** (C2 evidence,
   C3, C4 open).
+- 2026-10-21 — **C2 CPU/auth spike EXECUTED (owner-authorized) → CONDITIONAL PASS.**
+  Isolated branch `spike/goldberg-0.11-c2-bff` from `2de3096`; all work under
+  `spikes/bff-c2/` (BFF worker implementing AUTH.md §2–3/§5–6, loopback-only fake
+  Supabase stub with fault injection, per-run synthetic RSA/JWKS fixtures, scenario
+  runner with kernel CPU accounting). Executed: CPU-metric validity + **S1–S19
+  (19/19 PASS)** + **P1–P7 (all executed)**. Trustworthy CPU (OS accounting of the
+  workerd process; the in-worker clock was proven to include awaited I/O and the
+  wrangler/span-store alternatives carry wall only): **2.03 ms/invocation average**
+  — flat under 0/5/25/100 ms latency injection, flat across concurrency 1/5/20,
+  2.054 ms across a 10 000-request stability run (0 errors); conservative
+  per-invocation upper bounds p50 3 / p95 4 / p99 6 ms; CDP profiler cross-check
+  6.65 ms/req (upper bound). Three failed runs preserved (`spikes/bff-c2/results/
+  FAILURE-LOG.md`): stub filter bug, control-reset early-return, sign-in-after-fault
+  ordering, kill-cache TTL, JWKS cache-window adoption, GC noise in one kernel
+  batch, and wrangler `[vars]` echoing the session secret into local logs (fixed via
+  gitignored per-run `.dev.vars`). No private keys or secrets committed (per-run
+  keys, gitignored). **6.0f stays UNCHECKED: §12 production-runtime verification
+  (real deployment, real Supabase latency, real cold starts, per-request CPU
+  percentiles) remains owner-gated and unexecuted; C3/C4 open.** Evidence:
+  `spikes/bff-c2/results/SUMMARY.md`, `results/raw/run.json`.
 
 created by stokonn with love <3

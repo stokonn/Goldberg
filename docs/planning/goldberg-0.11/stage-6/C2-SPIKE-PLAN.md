@@ -1,5 +1,20 @@
 # Stage 6 — C2 CPU/auth spike: test plan and execution specification
 
+> **EXECUTION STATUS (2026-10-21, later the same day): EXECUTED — verdict
+> CONDITIONAL PASS.** The owner authorized execution; the spike was implemented
+> under `spikes/bff-c2/` on branch `spike/goldberg-0.11-c2-bff` (code+evidence
+> commit `d2ce77bf980a8514fe5624302499a2a7cc223a12`) and executed locally
+> (loopback only, synthetic identities, nothing deployed, no accounts).
+> Results: S1–S19 **19/19 PASS**; P1–P7 fully executed; trustworthy CPU
+> (kernel-accounted) **2.03 ms/invocation** average vs the 10 ms Workers Free
+> ceiling (re-verified 2026-10-21); conservative per-invocation upper bounds
+> p50 3 / p95 4 / p99 6 ms. **C2 is NOT closed:** the §12 production-runtime
+> verification (owner-gated, real Cloudflare deployment) remains outstanding,
+> and two harness defects plus one response-only worker defect found during
+> execution are preserved in `spikes/bff-c2/results/FAILURE-LOG.md`.
+> Authoritative report: `spikes/bff-c2/results/SUMMARY.md`. The planning text
+> below is retained unchanged as written.
+
 **Planning and test specification only. Nothing in this document is implemented,
 installed, executed or provisioned. The C2 spike is UNEXECUTED (§15).**
 Evaluation/plan date: **2026-10-21**, the day the owner approved the C2 approach.

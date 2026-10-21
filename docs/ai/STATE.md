@@ -6,6 +6,15 @@
 > the authoritative record is on `feature/goldberg-0.11-stage-5` (completion commit
 > `736f6d3`). Everything below is retained as historical evidence only.
 
+> **ADDITIVE NOTE (2026-10-21, C2 spike execution):** the owner-authorized isolated
+> C2 CPU/auth spike was **executed → CONDITIONAL PASS** on branch
+> `spike/goldberg-0.11-c2-bff` (`d2ce77b`), all work under `spikes/bff-c2/`
+> (loopback-only, synthetic identities, nothing deployed): S1–S19 **19/19 PASS**,
+> P1–P7 fully executed, kernel-accounted CPU **2.03 ms/invocation** vs the 10 ms
+> Workers Free ceiling. **Stage 6 production implementation remains NOT STARTED**;
+> task 6.0f stays unchecked pending the owner-gated §12 production-runtime
+> verification; C3/C4 open. Evidence: `spikes/bff-c2/results/SUMMARY.md`.
+
 > **Last updated:** 2026-10-20, CI-activation session (Phase A/B of the owner's CI plan;
 > approval gate reached — nothing dispatched or merged).
 > Read order for a fresh session: `AGENTS.md` → this file → `docs/ai/HANDOFF.md` →

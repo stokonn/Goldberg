@@ -7,7 +7,7 @@ production Cloudflare performance (remaining §12 verification in §9/§10).
 
 - Run: `2026-10-21T13:30:08.736Z` (run 3; runs 1–2 failed — preserved in `FAILURE-LOG.md`)
 - Branch: `spike/goldberg-0.11-c2-bff` (isolated; planning baseline `2de3096`)
-- Code-under-test commit: `SPIKE_COMMIT_SHA` (uncommitted at execution time — committed immediately after; `raw/run.json` records the parent planning SHA `2de30960fa8d99986b7aa621102ff5a21575ffe3`)
+- Code-under-test commit: `d2ce77bf980a8514fe5624302499a2a7cc223a12` (uncommitted at execution time — committed immediately after; `raw/run.json` records the parent planning SHA `2de30960fa8d99986b7aa621102ff5a21575ffe3`)
 
 ## 1. Runtime / tool versions
 
@@ -35,8 +35,9 @@ never committed.
 | Performance P1–P7 | 7 | 7 (executed; interpretation caveats §10) | 0 | 0 | 0 |
 | CPU-metric validity + probe + log scan | 3 | 3 | 0 | 0 | 0 |
 
-Nothing was marked passed without execution. ~17 600 requests were issued in
-total across the matrix (including 10 000-request stability run).
+Nothing was marked passed without execution. ≈19 000 requests were issued in
+total across the matrix (including the 10 000-request stability run and the
+kernel-accounting batches).
 
 ## 3. CPU measurement — investigation & validity (plan §7, critical)
 
@@ -175,7 +176,7 @@ spike alone.
    CPU, and the per-invocation ceiling is inferred.
 3. P2 "cold start" includes wrangler bundling/spawn (~2 s) — a dev-tooling
    artifact; production isolate cold start is unmeasured here.
-4. P7 RSS grew 1 037 →  1 422 MB over 10 000 requests in local dev (V8 arena
+4. P7 RSS grew 1 037 → 1 422 MB over 10 000 requests in local dev (V8 arena
    retention vs. leak is undetermined; production GC/eviction semantics
    differ). Flagged for §12.
 5. No request-controllable clock seam exists in the code under test (deliberate
@@ -204,8 +205,8 @@ Results land in `results/summary-data.json` and `results/raw/run.json`.
 ## 12. Exact commit
 
 - Branch: `spike/goldberg-0.11-c2-bff`
-- Spike code + evidence commit: `SPIKE_COMMIT_SHA`
-- Docs sync commit: `DOCS_COMMIT_SHA`
+- Spike code + evidence commit: `d2ce77bf980a8514fe5624302499a2a7cc223a12`
+- Docs sync commit: the commit carrying this file + the planning/ai doc updates (see branch log; also recorded in the Issue #31 checkpoint)
 - Execution-time recorded parent: `2de30960fa8d99986b7aa621102ff5a21575ffe3`
 
 created by stokonn with love <3

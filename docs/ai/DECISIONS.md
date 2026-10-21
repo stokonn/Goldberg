@@ -129,3 +129,24 @@ above.
   touching Stage 5 code or evidence.
 - No identity, controller contact, legal or credential data was invented; no legal
   compliance is claimed; free hosting is not proof of compliance.
+
+## Stage 6 C2 spike — execution outcome (2026-10-21, owner-authorized)
+
+- The owner explicitly authorized **executing** the isolated local C2 CPU/auth
+  spike planned in `docs/planning/goldberg-0.11/stage-6/C2-SPIKE-PLAN.md`.
+  Executed on isolated branch `spike/goldberg-0.11-c2-bff` (`d2ce77b`), all work
+  under `spikes/bff-c2/`; loopback-only, synthetic identities, per-run gitignored
+  keys, no accounts, nothing deployed.
+- **Outcome: CONDITIONAL PASS for local CPU/auth feasibility.** S1–S19 19/19
+  PASS; P1–P7 executed; kernel-accounted CPU 2.03 ms/invocation (vs the 10 ms
+  Workers Free ceiling re-verified 2026-10-21); per-invocation upper bounds
+  p50 3 / p95 4 / p99 6 ms. The in-worker clock was proven to include awaited
+  I/O, so OS accounting of the workerd process is the trustworthy CPU metric.
+- **What this does NOT decide:** production-runtime performance (§12
+  verification remains owner-gated and unexecuted); task 6.0f/C2 are **not
+  closed**; C3/C4 remain open; Stage 6 production implementation remains not
+  started and still requires separate owner authorization.
+- No measurement was fabricated: three failed runs and their root causes are
+  preserved in `spikes/bff-c2/results/FAILURE-LOG.md`.
+
+created by stokonn with love <3
