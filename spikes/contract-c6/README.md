@@ -51,6 +51,29 @@ C6_PG_URL=postgres://c6spike@127.0.0.1:54329/c6spike node tools/execute-pg.mjs
 uses a fresh throwaway schema; nothing is shared with any Supabase project (none
 exists — provisioning stays gated).
 
+## Concurrency hardening (2026-10-22): FOR UPDATE vs SERIALIZABLE — EXPERIMENTAL
+
+Follow-up to the C6-PG findings F1/F3/F4 (`results/SUMMARY-PG.md`). **Experimental
+mitigation spike: not production code, never merged, never deployed.** The faithful
+sources and the original failing evidence (`results/pg/`) stay byte-untouched.
+
+- `src/harden.mjs` — an experimental hardened decision endpoint implementing BOTH
+  candidate mitigations over the same `runDecision` step sequence:
+  `for-update` (row lock + `audit_head` append mutex; 0 retries observed everywhere)
+  and `serializable` (SSI + bounded retry + explicit 40001/40P01/23505 handling;
+  exhaustion maps to 409, never 500). Both share the F3 store hardening (23505 →
+  serve the stored replay, or 422 on mismatch).
+- `tests/v11-concurrency-hardening.test.mjs` (PG-only) — in-process races through
+  the real hardened server, the repeated 20-trial multi-process barrier race per
+  strategy (the mitigation counterpart of v9's 10/10 deviations), contract +
+  negative behavior, a deterministic F3 store race, and a 20-decision F4 scale run.
+- `tools/decide-hardened-child.mjs` + `tools/execute-hardening.mjs` — race child
+  and evidence executor writing to `results/pg-hardening/` only.
+- Result (see `results/pg-hardening/SUMMARY-HARDENING.md`): both strategies restore
+  `[201,409]` in 20/20 multi-process trials; **row locking is the recommended
+  pattern** (deterministic, zero retries); serializable works but cost 218× 40001
+  aborts at 20-way concurrency.
+
 ## What it does
 
 Implements a minimal, disposable, **in-process** simulator of the Stage 6 `/v1`
@@ -71,6 +94,7 @@ synthetic identities, fake sessions and a fake clock, then verifies with determi
 | `v8-chain` | append-only audit, tamper evidence | T18 (local chain) |
 | `v9-race` | multi-process concurrent approve → exactly one commits | T10 (true concurrency) |
 | `v10-pg-isolation` (PG-only) | READ COMMITTED vs FOR UPDATE vs SERIALIZABLE, idempotency/audit seq races, int8 mapping, FK absence | T10, T11, T18 |
+| `v11-concurrency-hardening` (PG-only, experimental) | hardened decision endpoint: repeated race per strategy, SQLSTATE mapping, F3 replay-on-conflict, F4 scale | T10, T11, T18 (mitigation comparison) |
 
 ## How to run
 
@@ -78,6 +102,8 @@ synthetic identities, fake sessions and a fake clock, then verifies with determi
 node tools/execute.mjs     # SQLite venue: scan + full suite + results/ (~5 s)
 # PostgreSQL venue (needs the loopback instance above):
 C6_PG_URL=postgres://c6spike@127.0.0.1:54329/c6spike node tools/execute-pg.mjs
+# hardening evidence run (current full suite incl. v11):
+C6_PG_URL=postgres://c6spike@127.0.0.1:54329/c6spike node tools/execute-hardening.mjs
 # or manually, either engine:
 C6_ENGINE=postgres C6_PG_URL=... node --test tests/*.test.mjs
 ```
