@@ -1,0 +1,4 @@
+# Goldberg 0.11 Stage 6 — C6 contract-behavior spike (isolated; disposable)
+.scratch/
+node_modules/
+*.log

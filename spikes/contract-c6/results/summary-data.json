@@ -1,0 +1,25 @@
+{
+  "spike": "goldberg-0.11-stage-6-contract (C6 contract-behavior)",
+  "started": "2026-10-22T06:40:20.323Z",
+  "finished": "2026-10-22T06:40:23.144Z",
+  "branch": "spike/goldberg-0.11-stage-6-contract",
+  "commit": "c22adb17d5304e3e3c9cb7cca31030466dbc05ee",
+  "node": "v22.23.1",
+  "staticScan": {
+    "filesScanned": 17,
+    "forbiddenFindings": [],
+    "verdict": "PASS (no network/dependency surface)"
+  },
+  "counts": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "exitCode": 0
+  },
+  "verdict": "ALL TESTS PASS (local spike scope only — not production verification)",
+  "environmentWarnings": [
+    "node:sqlite emits ExperimentalWarning on Node 22 (recorded honestly in TAP output)"
+  ]
+}
