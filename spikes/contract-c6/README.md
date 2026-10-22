@@ -6,9 +6,50 @@ this directory. Scope authority: the owner-authorized Stage 6 local-only verific
 prototype instruction (2026-10-22), mirroring the C2 spike precedent. See
 `docs/planning/goldberg-0.11/stage-6/` for the normative contract.
 
-Branch: `spike/goldberg-0.11-stage-6-contract` (created from planning HEAD `c22adb1`).
-Planning branch stays untouched; planning-doc sync happens separately, without merging
-this spike's code (C2 pattern: spike docs commit, then planning-branch docs commit).
+Branch: `spike/goldberg-0.11-stage-6-contract-pg` (the C6-PG port branch, created from
+`spike/goldberg-0.11-stage-6-contract` @ `d2a95d4`). Planning branch stays untouched;
+planning-doc sync happens separately, without merging this spike's code (C2 pattern:
+spike docs commit, then planning-branch docs commit). **Never merged.**
+
+## C6-PG port (2026-10-22): the same contract tests against real PostgreSQL
+
+Owner task: verify the existing C6 contract tests against a real, isolated, LOCAL
+PostgreSQL instance (transaction isolation and concurrent moderation, constraints and
+rollback, idempotency and audit integrity, SQLite-vs-PostgreSQL differences).
+
+Approach — **same server source, same suites, two engines**:
+
+- The DB layer became a small async adapter interface (`get/all/run/exec/close`) with
+  two implementations selected per run via `C6_ENGINE` (`sqlite` default | `postgres`):
+  `src/db.mjs` (SQLite, still zero-dep) and `src/db-pg.mjs` (PostgreSQL, the single new
+  dependency `pg` — a deliberate, isolated deviation from C6's zero-npm invariant,
+  needed to speak the wire protocol; SQLite venue stays zero-dep).
+- `src/server.mjs` / `src/auth.mjs` / all suites were ported to `await` the adapter —
+  business logic, validation, state machine and hash chain are unchanged, so engine
+  differences surface as test results instead of code forks.
+- Adapter translations (each a recorded SQLite→PostgreSQL difference):
+  `?` → `$1..$n`; `BEGIN IMMEDIATE` → `BEGIN` (PostgreSQL has no write-lock-at-BEGIN);
+  `rowid` → `id` (a real `BIGSERIAL id` column is added to `published_entities`);
+  int8/BIGINT results → JS numbers via an installed type parser.
+- New suite `tests/v10-pg-isolation.test.mjs` (PostgreSQL-only, deterministic
+  interleavings of the exact runDecision statement sequence): ISO-1/2/3 isolation
+  probes, CONS-1 idempotency PK race, CHAIN-1 audit-seq race, TYPE-1 int8 mapping,
+  CONS-2 FK-absence probe.
+- Evidence: `results/pg/` (both venues' TAP, summary, environment). SQLite post-port
+  regression run is captured next to the PostgreSQL run.
+
+Verification instance (synthetic data only, rootless podman, loopback only):
+
+```bash
+podman run -d --name c6-pg -e POSTGRES_USER=c6spike -e POSTGRES_DB=c6spike \
+  -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1:54329:5432 \
+  docker.io/library/postgres:17-alpine
+C6_PG_URL=postgres://c6spike@127.0.0.1:54329/c6spike node tools/execute-pg.mjs
+```
+
+`127.0.0.1:54329` binds host-loopback only; trust auth is loopback-only; every test
+uses a fresh throwaway schema; nothing is shared with any Supabase project (none
+exists — provisioning stays gated).
 
 ## What it does
 
@@ -29,17 +70,21 @@ synthetic identities, fake sessions and a fake clock, then verifies with determi
 | `v7-ssrf` | evidence-URL guard (static portion) | T14 (static only) |
 | `v8-chain` | append-only audit, tamper evidence | T18 (local chain) |
 | `v9-race` | multi-process concurrent approve → exactly one commits | T10 (true concurrency) |
+| `v10-pg-isolation` (PG-only) | READ COMMITTED vs FOR UPDATE vs SERIALIZABLE, idempotency/audit seq races, int8 mapping, FK absence | T10, T11, T18 |
 
 ## How to run
 
 ```bash
-node tools/execute.mjs     # static isolation scan + full suite + results/ (~5 s)
-# or manually:
-node --test tests/*.test.mjs
+node tools/execute.mjs     # SQLite venue: scan + full suite + results/ (~5 s)
+# PostgreSQL venue (needs the loopback instance above):
+C6_PG_URL=postgres://c6spike@127.0.0.1:54329/c6spike node tools/execute-pg.mjs
+# or manually, either engine:
+C6_ENGINE=postgres C6_PG_URL=... node --test tests/*.test.mjs
 ```
 
-Zero npm dependencies — no `npm install` is needed or permitted. Requires Node ≥ 22.5
-(`node:sqlite`, experimental; the ExperimentalWarning is recorded in the raw TAP).
+SQLite venue: zero npm dependencies. PostgreSQL venue: `npm install` once to get the
+`pg` wire client. Requires Node ≥ 22.5 (`node:sqlite`, experimental; the
+ExperimentalWarning is recorded in the raw TAP).
 
 ## Permissible vs blocked experiments (pre-6.0f determination)
 
@@ -56,8 +101,11 @@ which this explicitly is not.
 - **All [I] venue rows** — real Google OAuth/JWKS rotation, real Supabase quota/
   pause, browser CSRF/CORS against a deployed Admin, real RPO drill — require the
   provisioned project (same gate as above).
-- **Real Postgres serializable-isolation proof** — Supabase Free not provisioned;
-  v9 verifies contract-level conditional commit under SQLite's write lock only.
+- **Real Postgres serializable-isolation proof** — partially addressed by the C6-PG
+  port: verified against a LOCAL PostgreSQL 17.11 (v9 + v10, both isolation probes,
+  see `results/SUMMARY-PG.md`). **Still blocked: the same proof against the actual
+  Supabase Free service** (PostgREST pool, Supabase-managed config) — Supabase Free
+  not provisioned (D5b/Q1 + C4 gates; NOT AUTHORIZED).
 - **Production server implementation (6.1–6.18)** — gated on 6.0f acceptance +
   separate implementation authorization. Nothing here implements production code.
 - **CPU budget re-measurement** — already measured by C2 (2.03 ms avg); not repeated.
@@ -83,8 +131,11 @@ which this explicitly is not.
 ## Non-claims
 
 This spike does **not** demonstrate integration or production readiness, does not
-verify HTTP transport/CSRF/CORS (C2 scope), does not exercise a real database engine's
-isolation level, does not use real accounts/credentials/user data, and does not close
-any Stage 6 task (6.1–6.18 remain unchecked). Results are simulator-contract evidence
-only. Layout: `src/` simulator, `tests/` suites, `tools/` executor + race child,
-`results/` recorded evidence.
+verify HTTP transport/CSRF/CORS (C2 scope), does not use real accounts/credentials/
+user data, does not exercise the Supabase-managed service itself, and does not close
+any Stage 6 task (6.1–6.18 remain unchecked). With the C6-PG port it now DOES exercise
+a real database engine's isolation behavior — a local PostgreSQL 17.11 with its default
+READ COMMITTED plus explicit SERIALIZABLE probes (evidence in `results/pg/`,
+findings in `results/SUMMARY-PG.md`) — but a local instance is not Supabase and this
+is still simulator-contract evidence only. Layout: `src/` simulator (two DB engines),
+`tests/` suites, `tools/` executors + race child, `results/` recorded evidence.

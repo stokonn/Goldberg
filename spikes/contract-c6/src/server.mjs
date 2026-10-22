@@ -1,15 +1,21 @@
 // Goldberg 0.11 Stage 6 — C6 contract-behavior spike: the contract server.
 //
 // A minimal, disposable, IN-PROCESS simulator of the Stage 6 `/v1` contract
-// (API-CONTRACTS.md, DATA-MODEL.md §2–§6) against an isolated local SQLite
-// database. Synthetic identities, fake sessions, fake clock, zero network,
-// zero npm dependencies. This is NOT the production server: no HTTP transport,
-// no real auth provider, no Supabase/Postgres engine. HTTP/CSRF/CORS/token
-// behavior was covered by the C2 spike (S1–S19); this layer verifies the
-// business-logic contract above it.
+// (API-CONTRACTS.md, DATA-MODEL.md §2–§6) against an isolated local database
+// (SQLite by default; PostgreSQL via the C6-PG port). Synthetic identities,
+// fake sessions, fake clock, zero npm dependencies on the SQLite venue. This
+// is NOT the production server: no HTTP transport, no real auth provider, no
+// Supabase project. HTTP/CSRF/CORS/token behavior was covered by the C2 spike
+// (S1–S19); this layer verifies the business-logic contract above it.
 //
 // THREAT-MODEL rows exercised here (all [L] venue): T5, T6, T7, T8, T10, T11,
 // T12, T13, T14 (static portion), T16, T17, T18 (local chain), T22.
+//
+// C6-PG PORT NOTE (2026-10-22): every database call is now AWAITED through the
+// async adapter interface (src/db.mjs SQLite, src/db-pg.mjs PostgreSQL). The
+// business logic, validation, state machine, hash chain and error envelopes
+// are unchanged — the same source runs on both engines so that engine-behavior
+// differences surface as test results, not as code forks.
 
 import { createHash } from 'node:crypto';
 import { resolveSession, requireCapability } from './auth.mjs';
@@ -47,28 +53,27 @@ function canonical(value) {
 // ---------------------------------------------------------------------------
 // Hash-chained audit (DATA-MODEL.md §6): append-only, tamper-evident.
 // ---------------------------------------------------------------------------
-function appendAudit(db, now, actorId, action, subject, payload) {
-  const last = db
-    .prepare('SELECT seq, this_hash FROM audit_events ORDER BY seq DESC LIMIT 1')
-    .get();
+async function appendAudit(db, now, actorId, action, subject, payload) {
+  const last = await db.get(
+    'SELECT seq, this_hash FROM audit_events ORDER BY seq DESC LIMIT 1'
+  );
   const seq = (last?.seq ?? 0) + 1;
   const prevHash = last?.this_hash ?? 'GENESIS';
   const payloadHash = sha256(canonical(payload ?? null));
   const thisHash = sha256(
     `${seq}|${now}|${actorId}|${action}|${subject}|${payloadHash}|${prevHash}`
   );
-  db.prepare(
-    'INSERT INTO audit_events (seq, ts, actor_id, action, subject, payload_hash, prev_hash, this_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(seq, now, actorId, action, subject, payloadHash, prevHash, thisHash);
+  await db.run(
+    'INSERT INTO audit_events (seq, ts, actor_id, action, subject, payload_hash, prev_hash, this_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [seq, now, actorId, action, subject, payloadHash, prevHash, thisHash]
+  );
   return seq;
 }
 
-export function verifyChain(db) {
-  const rows = db
-    .prepare(
-      'SELECT seq, ts, actor_id, action, subject, payload_hash, prev_hash, this_hash FROM audit_events ORDER BY seq ASC'
-    )
-    .all();
+export async function verifyChain(db) {
+  const rows = await db.all(
+    'SELECT seq, ts, actor_id, action, subject, payload_hash, prev_hash, this_hash FROM audit_events ORDER BY seq ASC'
+  );
   let prev = 'GENESIS';
   for (const r of rows) {
     const recomputed = sha256(
@@ -151,15 +156,14 @@ export function createServer({ db, now }) {
     appendAudit(db, now(), actor, action, subject, payload);
 
   // -- idempotency ----------------------------------------------------------
-  function checkIdempotency(principalId, key, method, path, body) {
+  async function checkIdempotency(principalId, key, method, path, body) {
     const requestHash = sha256(`${method}|${path}|${canonical(body)}`);
     const expiryCutoff = now() - DAY_MS;
-    db.prepare('DELETE FROM idempotency WHERE created_at < ?').run(expiryCutoff);
-    const row = db
-      .prepare(
-        'SELECT request_hash, status_code, response_json FROM idempotency WHERE principal_id = ? AND key = ?'
-      )
-      .get(principalId, key);
+    await db.run('DELETE FROM idempotency WHERE created_at < ?', [expiryCutoff]);
+    const row = await db.get(
+      'SELECT request_hash, status_code, response_json FROM idempotency WHERE principal_id = ? AND key = ?',
+      [principalId, key]
+    );
     if (!row) return { requestHash };
     if (row.request_hash !== requestHash) {
       throw new HttpError(
@@ -171,17 +175,18 @@ export function createServer({ db, now }) {
     return { replay: { status: row.status_code, body: JSON.parse(row.response_json) } };
   }
 
-  function storeIdempotency(principalId, key, method, path, body, status, responseBody) {
+  async function storeIdempotency(principalId, key, method, path, body, status, responseBody) {
     if (key === undefined || principalId === null) return;
-    db.prepare(
-      'INSERT INTO idempotency (principal_id, key, request_hash, status_code, response_json, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(
-      principalId,
-      key,
-      sha256(`${method}|${path}|${canonical(body)}`),
-      status,
-      JSON.stringify(responseBody),
-      now()
+    await db.run(
+      'INSERT INTO idempotency (principal_id, key, request_hash, status_code, response_json, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        principalId,
+        key,
+        sha256(`${method}|${path}|${canonical(body)}`),
+        status,
+        JSON.stringify(responseBody),
+        now(),
+      ]
     );
   }
 
@@ -212,13 +217,13 @@ export function createServer({ db, now }) {
   }
 
   // -- approval decision transaction (DATA-MODEL.md §4 canonical order) -----
-  function runDecision(actor, subId, body) {
+  async function runDecision(actor, subId, body) {
     const { decision, expectedRevision, reason } = body;
     const ts = now();
-    db.exec('BEGIN IMMEDIATE');
+    await db.exec('BEGIN IMMEDIATE');
     try {
       // 1. authorize (middleware: role + non-suspension) + actor≠author
-      const sub = db.prepare('SELECT * FROM submissions WHERE id = ?').get(subId);
+      const sub = await db.get('SELECT * FROM submissions WHERE id = ?', [subId]);
       if (!sub) throw new HttpError(404, 'not_found', 'No such submission');
       if (sub.principal_id === actor.id)
         throw new HttpError(403, 'forbidden', 'Actor cannot decide on own submission (actor≠author)');
@@ -256,26 +261,26 @@ export function createServer({ db, now }) {
         fault('before_publish_row');
         // 4. published_revisions + published_entities upsert
         entityUuid = payload.target.catalogueUuid ?? `ent_${subId}`;
-        const existing = db.prepare('SELECT uuid FROM published_entities WHERE uuid = ?').get(entityUuid);
-        db.prepare(
-          'INSERT INTO published_revisions (entity_uuid, submission_id, revision, payload_json, created_at) VALUES (?, ?, ?, ?, ?)'
-        ).run(entityUuid, sub.id, sub.revision, sub.payload_json, ts);
-        publishedRevisionId = db.prepare('SELECT MAX(id) AS id FROM published_revisions').get().id;
+        const existing = await db.get('SELECT uuid FROM published_entities WHERE uuid = ?', [entityUuid]);
+        await db.run(
+          'INSERT INTO published_revisions (entity_uuid, submission_id, revision, payload_json, created_at) VALUES (?, ?, ?, ?, ?)',
+          [entityUuid, sub.id, sub.revision, sub.payload_json, ts]
+        );
+        publishedRevisionId = (await db.get('SELECT MAX(id) AS id FROM published_revisions')).id;
         if (existing) {
-          db.prepare('UPDATE published_entities SET current_revision_id = ?, updated_at = ? WHERE uuid = ?').run(
-            publishedRevisionId,
-            ts,
-            entityUuid
-          );
+          await db.run('UPDATE published_entities SET current_revision_id = ?, updated_at = ? WHERE uuid = ?',
+            [publishedRevisionId, ts, entityUuid]);
         } else {
-          db.prepare(
-            'INSERT INTO published_entities (uuid, kind, current_revision_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-          ).run(entityUuid, payload.target.kind, publishedRevisionId, 'published', ts, ts);
+          await db.run(
+            'INSERT INTO published_entities (uuid, kind, current_revision_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [entityUuid, payload.target.kind, publishedRevisionId, 'published', ts, ts]
+          );
         }
         // 6a. change-feed entry
-        db.prepare(
-          'INSERT INTO change_feed (kind, entity_uuid, revision_ref, provenance, created_at) VALUES (?, ?, ?, ?, ?)'
-        ).run('published', entityUuid, publishedRevisionId, `submission:${sub.id}#${sub.revision}`, ts);
+        await db.run(
+          'INSERT INTO change_feed (kind, entity_uuid, revision_ref, provenance, created_at) VALUES (?, ?, ?, ?, ?)',
+          ['published', entityUuid, publishedRevisionId, `submission:${sub.id}#${sub.revision}`, ts]
+        );
         fault('after_publish_row'); // T17 rollback point
         newStatus = 'published';
       } else if (decision === 'reject') {
@@ -285,19 +290,20 @@ export function createServer({ db, now }) {
       }
 
       // 5. advance status + review event
-      db.prepare('UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?').run(newStatus, ts, sub.id);
-      db.prepare(
-        'INSERT INTO review_events (submission_id, revision, decision, actor_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(sub.id, sub.revision, decision, actor.id, reason ?? null, ts);
+      await db.run('UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?', [newStatus, ts, sub.id]);
+      await db.run(
+        'INSERT INTO review_events (submission_id, revision, decision, actor_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [sub.id, sub.revision, decision, actor.id, reason ?? null, ts]
+      );
 
       // 6b. hash-chained audit append
-      auditNow(actor.id, `decision.${decision}`, `submission:${sub.id}`, {
+      await auditNow(actor.id, `decision.${decision}`, `submission:${sub.id}`, {
         revision: sub.revision,
         reason: reason ?? null,
       });
 
       // 7. commit
-      db.exec('COMMIT');
+      await db.exec('COMMIT');
       return res(201, {
         submissionId: sub.id,
         decision,
@@ -307,7 +313,7 @@ export function createServer({ db, now }) {
       });
     } catch (e) {
       try {
-        db.exec('ROLLBACK');
+        await db.exec('ROLLBACK');
       } catch {
         /* no open tx */
       }
@@ -317,34 +323,35 @@ export function createServer({ db, now }) {
   }
 
   // -- quotas ---------------------------------------------------------------
-  function checkSubmissionQuotas(principalId) {
+  async function checkSubmissionQuotas(principalId) {
     const day = Math.floor(now() / DAY_MS);
-    const counter = db
-      .prepare('SELECT submissions_count FROM quota_counters WHERE principal_id = ? AND day = ?')
-      .get(principalId, String(day));
+    const counter = await db.get(
+      'SELECT submissions_count FROM quota_counters WHERE principal_id = ? AND day = ?',
+      [principalId, String(day)]
+    );
     if ((counter?.submissions_count ?? 0) >= MAX_DAILY_SUBMISSIONS) {
       return err(429, 'rate_limited', 'Daily submission quota exhausted', { retryAfter: 3600 });
     }
-    const pending = db
-      .prepare(
-        "SELECT COUNT(*) AS c FROM submissions WHERE principal_id = ? AND status IN ('submitted','in_review','changes_requested')"
-      )
-      .get(principalId);
+    const pending = await db.get(
+      "SELECT COUNT(*) AS c FROM submissions WHERE principal_id = ? AND status IN ('submitted','in_review','changes_requested')",
+      [principalId]
+    );
     if (pending.c >= MAX_PENDING) {
       return err(429, 'rate_limited', 'Pending submission quota exhausted', { retryAfter: 3600 });
     }
     return null;
   }
 
-  function bumpSubmissionQuota(principalId) {
+  async function bumpSubmissionQuota(principalId) {
     const day = Math.floor(now() / DAY_MS);
-    db.prepare(
-      'INSERT INTO quota_counters (principal_id, day, submissions_count) VALUES (?, ?, 1) ON CONFLICT(principal_id, day) DO UPDATE SET submissions_count = submissions_count + 1'
-    ).run(principalId, String(day));
+    await db.run(
+      'INSERT INTO quota_counters (principal_id, day, submissions_count) VALUES (?, ?, 1) ON CONFLICT(principal_id, day) DO UPDATE SET submissions_count = quota_counters.submissions_count + 1',
+      [principalId, String(day)]
+    );
   }
 
-  function killSwitchOn() {
-    return db.prepare("SELECT value FROM config WHERE key = 'kill_switch'").get()?.value === 'on';
+  async function killSwitchOn() {
+    return (await db.get("SELECT value FROM config WHERE key = 'kill_switch'"))?.value === 'on';
   }
 
   // -- route table ----------------------------------------------------------
@@ -371,16 +378,16 @@ export function createServer({ db, now }) {
 
   const listRoutes = () => ROUTES.map(([m, re]) => `${m} ${re.source}`);
 
-  function handle(req) {
+  async function handle(req) {
     const requestId = nextRequestId();
-    const result = route(req);
+    const result = await route(req);
     if (result.body.error) {
       return { status: result.status, body: { error: { ...result.body.error, requestId } } };
     }
     return { status: result.status, body: { requestId, ...result.body } };
   }
 
-  function route(req) {
+  async function route(req) {
     const { method, path, query = {}, body = {}, session } = req ?? {};
     const matched = ROUTES.find(([m, re]) => m === method && re.test(path ?? ''));
     if (!matched) return err(404, 'not_found', 'Unknown endpoint');
@@ -390,7 +397,7 @@ export function createServer({ db, now }) {
     // --- authentication / authorization (default-deny) ---
     let actor = null;
     if (auth === 'session') {
-      const resolved = resolveSession(db, session, now());
+      const resolved = await resolveSession(db, session, now());
       const gate = capability ? requireCapability(resolved, capability) : resolved;
       if (gate.error) return err(gate.error.status, gate.error.code, gate.error.message);
       actor = gate.principal;
@@ -412,7 +419,7 @@ export function createServer({ db, now }) {
     }
 
     // --- global intake kill switch (writes only; reads continue) ---
-    if (isWrite && path !== '/v1/session' && killSwitchOn()) {
+    if (isWrite && path !== '/v1/session' && (await killSwitchOn())) {
       return err(503, 'service_unavailable', 'Intake disabled by kill switch', { retryAfter: 60 });
     }
 
@@ -423,7 +430,7 @@ export function createServer({ db, now }) {
       if (!UUID_RE.test(key))
         return err(400, 'validation_failed', 'idempotencyKey: must be a UUID');
       try {
-        idem = checkIdempotency(actor.id, key, method, path, body);
+        idem = await checkIdempotency(actor.id, key, method, path, body);
       } catch (e) {
         // T12: key reuse with a different body is a 422 contract response,
         // never an unhandled server error.
@@ -433,34 +440,35 @@ export function createServer({ db, now }) {
       if (idem.replay) return res(idem.replay.status, idem.replay.body);
     }
 
-    const result = dispatch();
+    const result = await dispatch();
 
     if (key !== undefined && path !== '/v1/session' && result.status >= 200 && result.status < 300) {
-      storeIdempotency(actor.id, key, method, path, body, result.status, result.body);
+      await storeIdempotency(actor.id, key, method, path, body, result.status, result.body);
     }
     return result;
 
     // -------------------------------------------------------------------------
-    function dispatch() {
+    async function dispatch() {
       // ============ POST /v1/session (fake Google credential) ===============
       if (path === '/v1/session' && method === 'POST') {
         const credential = body.credential;
         if (typeof credential !== 'string' || !credential.startsWith('synthetic:'))
           return err(400, 'validation_failed', 'credential: expected synthetic:<principalId>');
         const principalId = credential.slice('synthetic:'.length);
-        const principal = db
-          .prepare('SELECT id, display_name, roles, suspended FROM principals WHERE id = ?')
-          .get(principalId);
+        const principal = await db.get(
+          'SELECT id, display_name, roles, suspended FROM principals WHERE id = ?',
+          [principalId]
+        );
         if (!principal) return err(401, 'unauthenticated', 'Credential verification failed');
         if (principal.suspended === 1) return err(403, 'forbidden', 'Principal is suspended');
         sessionCounter += 1;
         const sid = `sess_${String(sessionCounter).padStart(6, '0')}`;
-        db.prepare('INSERT INTO sessions (sid, principal_id, expires_at) VALUES (?, ?, ?)').run(
+        await db.run('INSERT INTO sessions (sid, principal_id, expires_at) VALUES (?, ?, ?)', [
           sid,
           principalId,
-          now() + SESSION_TTL_MS
-        );
-        auditNow(principalId, 'session.created', `session:${sid}`, null);
+          now() + SESSION_TTL_MS,
+        ]);
+        await auditNow(principalId, 'session.created', `session:${sid}`, null);
         return res(201, {
           sid,
           principalId,
@@ -471,7 +479,7 @@ export function createServer({ db, now }) {
 
       // ============ DELETE /v1/session (literal contract idempotency) ========
       if (path === '/v1/session' && method === 'DELETE') {
-        if (typeof session === 'string') db.prepare('DELETE FROM sessions WHERE sid = ?').run(session);
+        if (typeof session === 'string') await db.run('DELETE FROM sessions WHERE sid = ?', [session]);
         return res(200, { revoked: true });
       }
 
@@ -486,28 +494,30 @@ export function createServer({ db, now }) {
 
       // ============ POST /v1/submissions ====================
       if (path === '/v1/submissions' && method === 'POST') {
-        const quota = checkSubmissionQuotas(actor.id);
+        const quota = await checkSubmissionQuotas(actor.id);
         if (quota) return quota;
         const errors = validatePayload(body.payload);
         if (errors.length > 0)
           return err(400, 'validation_failed', 'Submission payload validation failed', errors);
-        const count = db.prepare('SELECT COUNT(*) AS c FROM submissions').get().c;
+        const count = (await db.get('SELECT COUNT(*) AS c FROM submissions')).c;
         const id = `sub_${String(count + 1).padStart(6, '0')}`;
         const ts = now();
-        db.prepare(
-          'INSERT INTO submissions (id, principal_id, status, revision, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).run(id, actor.id, 'submitted', 1, JSON.stringify(body.payload), ts, ts);
-        db.prepare(
-          'INSERT INTO revisions (submission_id, revision, payload_json, created_at) VALUES (?, ?, ?, ?)'
-        ).run(id, 1, JSON.stringify(body.payload), ts);
-        bumpSubmissionQuota(actor.id);
-        auditNow(actor.id, 'submission.created', `submission:${id}`, { revision: 1 });
+        await db.run(
+          'INSERT INTO submissions (id, principal_id, status, revision, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, actor.id, 'submitted', 1, JSON.stringify(body.payload), ts, ts]
+        );
+        await db.run(
+          'INSERT INTO revisions (submission_id, revision, payload_json, created_at) VALUES (?, ?, ?, ?)',
+          [id, 1, JSON.stringify(body.payload), ts]
+        );
+        await bumpSubmissionQuota(actor.id);
+        await auditNow(actor.id, 'submission.created', `submission:${id}`, { revision: 1 });
         return res(201, { submissionId: id, status: 'submitted', revision: 1 });
       }
 
       // ============ GET /v1/submissions/mine =================
       if (path === '/v1/submissions/mine') {
-        const rows = db.prepare('SELECT * FROM submissions WHERE principal_id = ?').all(actor.id);
+        const rows = await db.all('SELECT * FROM submissions WHERE principal_id = ?', [actor.id]);
         const { items, nextCursor } = paginate(
           rows.map((r) => ({
             id: r.id,
@@ -523,7 +533,7 @@ export function createServer({ db, now }) {
 
       // ============ GET /v1/submissions/{id} (existence-hidden) ==============
       if (path.startsWith('/v1/submissions/') && method === 'GET') {
-        const sub = db.prepare('SELECT * FROM submissions WHERE id = ?').get(m[1]);
+        const sub = await db.get('SELECT * FROM submissions WHERE id = ?', [m[1]]);
         if (!sub) return err(404, 'not_found', 'No such submission');
         const isOwner = sub.principal_id === actor.id;
         const isModerator = actor.capabilities.has('queue.read');
@@ -542,7 +552,7 @@ export function createServer({ db, now }) {
       // ============ POST /v1/submissions/{id}/revisions =======================
       if (path.endsWith('/revisions') && method === 'POST') {
         const id = m[1];
-        const sub = db.prepare('SELECT * FROM submissions WHERE id = ?').get(id);
+        const sub = await db.get('SELECT * FROM submissions WHERE id = ?', [id]);
         if (!sub || sub.principal_id !== actor.id)
           return err(404, 'not_found', 'No such submission'); // existence-hidden for non-owners
         if (!['draft', 'changes_requested', 'returned'].includes(sub.status))
@@ -555,20 +565,22 @@ export function createServer({ db, now }) {
           return err(400, 'validation_failed', 'Revision payload validation failed', errors);
         const ts = now();
         const newRevision = sub.revision + 1;
-        db.prepare(
-          'INSERT INTO revisions (submission_id, revision, payload_json, created_at) VALUES (?, ?, ?, ?)'
-        ).run(id, newRevision, JSON.stringify(body.payload), ts);
-        db.prepare(
-          'UPDATE submissions SET revision = ?, status = ?, payload_json = ?, updated_at = ? WHERE id = ?'
-        ).run(newRevision, 'in_review', JSON.stringify(body.payload), ts, id);
-        auditNow(actor.id, 'revision.created', `submission:${id}`, { revision: newRevision });
+        await db.run(
+          'INSERT INTO revisions (submission_id, revision, payload_json, created_at) VALUES (?, ?, ?, ?)',
+          [id, newRevision, JSON.stringify(body.payload), ts]
+        );
+        await db.run(
+          'UPDATE submissions SET revision = ?, status = ?, payload_json = ?, updated_at = ? WHERE id = ?',
+          [newRevision, 'in_review', JSON.stringify(body.payload), ts, id]
+        );
+        await auditNow(actor.id, 'revision.created', `submission:${id}`, { revision: newRevision });
         return res(201, { submissionId: id, revision: newRevision, status: 'in_review' });
       }
 
       // ============ POST /v1/submissions/{id}/withdraw ========================
       if (path.endsWith('/withdraw') && method === 'POST') {
         const id = m[1];
-        const sub = db.prepare('SELECT * FROM submissions WHERE id = ?').get(id);
+        const sub = await db.get('SELECT * FROM submissions WHERE id = ?', [id]);
         if (!sub || sub.principal_id !== actor.id)
           return err(404, 'not_found', 'No such submission');
         if (!['submitted', 'in_review'].includes(sub.status))
@@ -580,44 +592,44 @@ export function createServer({ db, now }) {
         if (reasonErrors.length > 0)
           return err(400, 'validation_failed', 'reason validation failed', reasonErrors);
         const ts = now();
-        db.prepare('UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?').run(
+        await db.run('UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?', [
           'withdrawn',
           ts,
-          id
-        );
-        auditNow(actor.id, 'submission.withdrawn', `submission:${id}`, { reason: body.reason ?? null });
+          id,
+        ]);
+        await auditNow(actor.id, 'submission.withdrawn', `submission:${id}`, { reason: body.reason ?? null });
         return res(200, { submissionId: id, status: 'withdrawn' });
       }
 
       // ============ public reads ============================================
       if (path === '/v1/catalogue/overlay') {
-        const entities = db
-          .prepare(
-            "SELECT rowid AS id, * FROM published_entities WHERE status = 'published' ORDER BY created_at, rowid"
-          )
-          .all();
+        const entities = await db.all(
+          "SELECT rowid AS id, * FROM published_entities WHERE status = 'published' ORDER BY created_at, rowid"
+        );
         const { items, nextCursor } = paginate(entities, query.cursor, query.limit);
         return res(200, {
-          items: items.map((e) => {
-            const rev = db
-              .prepare('SELECT payload_json FROM published_revisions WHERE id = ?')
-              .get(e.current_revision_id);
-            const payload = JSON.parse(rev.payload_json);
-            const title = payload.fields?.find((f) => f.field === 'title')?.newValue ?? e.uuid;
-            return {
-              kind: e.kind,
-              uuid: e.uuid,
-              title,
-              provenance: `revision:${e.current_revision_id}`,
-              revision: e.current_revision_id,
-            };
-          }),
+          items: await Promise.all(
+            items.map(async (e) => {
+              const rev = await db.get('SELECT payload_json FROM published_revisions WHERE id = ?', [
+                e.current_revision_id,
+              ]);
+              const payload = JSON.parse(rev.payload_json);
+              const title = payload.fields?.find((f) => f.field === 'title')?.newValue ?? e.uuid;
+              return {
+                kind: e.kind,
+                uuid: e.uuid,
+                title,
+                provenance: `revision:${e.current_revision_id}`,
+                revision: e.current_revision_id,
+              };
+            })
+          ),
           nextCursor,
         });
       }
 
       if (path === '/v1/catalogue/changes') {
-        const rows = db.prepare('SELECT * FROM change_feed ORDER BY created_at, id').all();
+        const rows = await db.all('SELECT * FROM change_feed ORDER BY created_at, id');
         const { items, nextCursor } = paginate(rows, query.cursor, query.limit);
         return res(200, {
           items: items.map((c) => ({
@@ -634,36 +646,41 @@ export function createServer({ db, now }) {
       if (path === '/v1/admin/queue') {
         const statuses = query.status ? [query.status] : PENDING_STATUSES;
         const placeholders = statuses.map(() => '?').join(',');
-        const rows = db
-          .prepare(`SELECT * FROM submissions WHERE status IN (${placeholders})`)
-          .all(...statuses);
+        const rows = await db.all(
+          `SELECT * FROM submissions WHERE status IN (${placeholders})`,
+          statuses
+        );
         const { items, nextCursor } = paginate(rows, query.cursor, query.limit);
         return res(200, {
-          items: items.map((s) => {
-            const payload = JSON.parse(s.payload_json);
-            return {
-              id: s.id,
-              owner: s.principal_id,
-              status: s.status,
-              revision: s.revision,
-              evidenceCount: (payload.fields ?? []).reduce((n, f) => n + (f.evidence?.length ?? 0), 0),
-              createdAt: s.created_at,
-            };
-          }),
+          items: await Promise.all(
+            items.map(async (s) => {
+              const payload = JSON.parse(s.payload_json);
+              return {
+                id: s.id,
+                owner: s.principal_id,
+                status: s.status,
+                revision: s.revision,
+                evidenceCount: (payload.fields ?? []).reduce((n, f) => n + (f.evidence?.length ?? 0), 0),
+                createdAt: s.created_at,
+              };
+            })
+          ),
           nextCursor,
         });
       }
 
       if (path.startsWith('/v1/admin/submissions/') && method === 'GET') {
         const id = m[1];
-        const sub = db.prepare('SELECT * FROM submissions WHERE id = ?').get(id);
+        const sub = await db.get('SELECT * FROM submissions WHERE id = ?', [id]);
         if (!sub) return err(404, 'not_found', 'No such submission');
-        const revisions = db
-          .prepare('SELECT revision, payload_json, created_at FROM revisions WHERE submission_id = ? ORDER BY revision')
-          .all(id);
-        const events = db
-          .prepare('SELECT revision, decision, actor_id, reason, created_at FROM review_events WHERE submission_id = ? ORDER BY id')
-          .all(id);
+        const revisions = await db.all(
+          'SELECT revision, payload_json, created_at FROM revisions WHERE submission_id = ? ORDER BY revision',
+          [id]
+        );
+        const events = await db.all(
+          'SELECT revision, decision, actor_id, reason, created_at FROM review_events WHERE submission_id = ? ORDER BY id',
+          [id]
+        );
         return res(200, {
           id: sub.id,
           owner: sub.principal_id,
@@ -694,9 +711,9 @@ export function createServer({ db, now }) {
 
       // ============ audit export (append-only view) =========================
       if (path === '/v1/admin/audit') {
-        const rows = db
-          .prepare('SELECT seq, ts, actor_id, action, subject, prev_hash, this_hash FROM audit_events ORDER BY seq')
-          .all();
+        const rows = await db.all(
+          'SELECT seq, ts, actor_id, action, subject, prev_hash, this_hash FROM audit_events ORDER BY seq'
+        );
         const { items, nextCursor } = paginate(
           rows.map((r) => ({ ...r, created_at: r.ts })),
           query.cursor,
@@ -726,13 +743,13 @@ export function createServer({ db, now }) {
           return err(400, 'validation_failed', 'action: must be grant | revoke');
         if (!['moderator', 'admin'].includes(body.role))
           return err(400, 'validation_failed', 'role: must be moderator | admin');
-        const target = db.prepare('SELECT * FROM principals WHERE id = ?').get(targetId);
+        const target = await db.get('SELECT * FROM principals WHERE id = ?', [targetId]);
         if (!target) return err(404, 'not_found', 'No such principal');
         let roles = JSON.parse(target.roles);
         if (body.action === 'grant' && !roles.includes(body.role)) roles.push(body.role);
         if (body.action === 'revoke') roles = roles.filter((r) => r !== body.role);
-        db.prepare('UPDATE principals SET roles = ? WHERE id = ?').run(JSON.stringify(roles), targetId);
-        auditNow(actor.id, `role.${body.action}`, `principal:${targetId}`, { role: body.role, roles });
+        await db.run('UPDATE principals SET roles = ? WHERE id = ?', [JSON.stringify(roles), targetId]);
+        await auditNow(actor.id, `role.${body.action}`, `principal:${targetId}`, { role: body.role, roles });
         return res(200, { principalId: targetId, roles });
       }
 
@@ -743,10 +760,10 @@ export function createServer({ db, now }) {
           return err(403, 'forbidden', 'Self suspension is forbidden (spike interpretation of T22)');
         if (typeof body.suspended !== 'boolean')
           return err(400, 'validation_failed', 'suspended: required boolean');
-        const target = db.prepare('SELECT * FROM principals WHERE id = ?').get(targetId);
+        const target = await db.get('SELECT * FROM principals WHERE id = ?', [targetId]);
         if (!target) return err(404, 'not_found', 'No such principal');
-        db.prepare('UPDATE principals SET suspended = ? WHERE id = ?').run(body.suspended ? 1 : 0, targetId);
-        auditNow(
+        await db.run('UPDATE principals SET suspended = ? WHERE id = ?', [body.suspended ? 1 : 0, targetId]);
+        await auditNow(
           actor.id,
           body.suspended ? 'principal.suspended' : 'principal.unsuspended',
           `principal:${targetId}`,
@@ -762,27 +779,28 @@ export function createServer({ db, now }) {
         if (body.reason === undefined || validateReason(body.reason).length > 0)
           return err(400, 'validation_failed', 'reason: required', ['reason: required']);
         const uuid = m[1];
-        const entity = db.prepare('SELECT * FROM published_entities WHERE uuid = ?').get(uuid);
+        const entity = await db.get('SELECT * FROM published_entities WHERE uuid = ?', [uuid]);
         if (!entity) return err(404, 'not_found', 'No such entity');
         if (entity.status === 'quarantined')
           return err(409, 'conflict', 'Entity already quarantined', { currentStatus: entity.status });
         const ts = now();
-        db.exec('BEGIN IMMEDIATE');
+        await db.exec('BEGIN IMMEDIATE');
         try {
-          db.prepare('UPDATE published_entities SET status = ?, updated_at = ? WHERE uuid = ?').run(
+          await db.run('UPDATE published_entities SET status = ?, updated_at = ? WHERE uuid = ?', [
             'quarantined',
             ts,
-            uuid
+            uuid,
+          ]);
+          await db.run(
+            'INSERT INTO change_feed (kind, entity_uuid, revision_ref, provenance, created_at) VALUES (?, ?, ?, ?, ?)',
+            ['quarantined', uuid, entity.current_revision_id, `admin:${actor.id}`, ts]
           );
-          db.prepare(
-            'INSERT INTO change_feed (kind, entity_uuid, revision_ref, provenance, created_at) VALUES (?, ?, ?, ?, ?)'
-          ).run('quarantined', uuid, entity.current_revision_id, `admin:${actor.id}`, ts);
-          auditNow(actor.id, 'entity.quarantined', `entity:${uuid}`, { reason: body.reason });
-          db.exec('COMMIT');
+          await auditNow(actor.id, 'entity.quarantined', `entity:${uuid}`, { reason: body.reason });
+          await db.exec('COMMIT');
           return res(200, { entityUuid: uuid, status: 'quarantined' });
         } catch (e) {
           try {
-            db.exec('ROLLBACK');
+            await db.exec('ROLLBACK');
           } catch {
             /* no open tx */
           }

@@ -3,13 +3,20 @@
 // simultaneously from separate processes → exactly one decision commits,
 // the loser gets 409, never double-approve / last-write-wins).
 //
-// Method: a scratch file-backed SQLite database (WAL + busy_timeout), two
-// independent Node processes barrier-synced on a sentinel file, each running
-// the full approval transaction under BEGIN IMMEDIATE. The invariant asserted
-// is the OUTCOME (exactly one 201 + one 409, single publication, coherent
-// audit); wall-clock interleaving order between processes is not asserted —
-// the database lock serializes writers, which is precisely the guarantee
-// under test.
+// Method: a shared trial database (SQLite scratch file — WAL + busy_timeout —
+// or a pinned per-trial PostgreSQL schema), two independent Node processes
+// barrier-synced on a sentinel file, each running the full approval
+// transaction. The invariant asserted is the OUTCOME; wall-clock interleaving
+// order between processes is not asserted.
+//
+// C6-PG PORT (2026-10-22): engine-aware via C6_ENGINE. SQLite venue asserts
+// the original invariant ([201, 409] every trial — the SQLite write lock
+// serializes BEGIN IMMEDIATE writers). The PostgreSQL venue (default READ
+// COMMITTED — the same default as Supabase's PostgREST pool) records the
+// actual outcomes and asserts only structural invariants that MUST hold under
+// any interleaving (coherent row counts matching the number of committed
+// decisions, verifiable audit chain); the deterministic isolation probes that
+// explain the observed PostgreSQL outcomes live in v10-pg-isolation.test.mjs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,12 +26,13 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { openDb, seedPrincipal } from '../src/db.mjs';
 import { createServer, verifyChain } from '../src/server.mjs';
-import { validPayload, key } from './helpers.mjs';
+import { validPayload, key, ENGINE } from './helpers.mjs';
 
 const T0 = 1_760_000_000_000;
 const SCRATCH = fileURLToPath(new URL('../.scratch/', import.meta.url));
 const CHILD = fileURLToPath(new URL('../tools/decide-child.mjs', import.meta.url));
 const TRIALS = 10;
+const PG_URL = process.env.C6_PG_URL;
 
 // Spawn helper: resolves `ready` when the child prints READY, `exited` with
 // its exit code; stdout/stderr accumulate in `state`.
@@ -52,22 +60,52 @@ function cleanup(files) {
   }
 }
 
-test('V9 multi-process concurrent approve race: exactly one commits (T10)', { timeout: 60_000 }, async () => {
+test('V9 multi-process concurrent approve race (T10)', { timeout: 120_000 }, async () => {
+  assert.ok(ENGINE !== 'postgres' || PG_URL, 'C6_ENGINE=postgres requires C6_PG_URL');
   mkdirSync(SCRATCH, { recursive: true });
   const outcomes = [];
 
   for (let trial = 0; trial < TRIALS; trial += 1) {
-    const dbPath = join(SCRATCH, `race-${trial}.db`);
-    const barrierPath = join(SCRATCH, `go-${trial}`);
-    cleanup([dbPath, `${dbPath}-wal`, `${dbPath}-shm`, barrierPath]);
+    let db;
+    let childArgsCommon;
+    let reopen;
+    let dropTrial;
 
-    const db = openDb(dbPath);
-    seedPrincipal(db, 'p_contrib_r', 'Synthetic Racer', []);
-    seedPrincipal(db, 'p_mod_a', 'Synthetic Mod A', ['moderator']);
-    seedPrincipal(db, 'p_mod_b', 'Synthetic Mod B', ['moderator']);
+    if (ENGINE === 'postgres') {
+      const { openPgDb, withAdmin } = await import('../src/db-pg.mjs');
+      const schema = `c6_race_${trial}`;
+      await withAdmin(PG_URL, 'c6spike', async (admin) => {
+        await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+        await admin.query(`CREATE SCHEMA ${schema}`);
+      });
+      db = await openPgDb({ url: PG_URL, schema });
+      childArgsCommon = ['postgres', PG_URL, schema];
+      reopen = () => openPgDb({ url: PG_URL, schema, ddl: false });
+      dropTrial = async () => {
+        await db.close();
+        await withAdmin(PG_URL, 'c6spike', (admin) => admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`));
+      };
+    } else {
+      const dbPath = join(SCRATCH, `race-${trial}.db`);
+      cleanup([dbPath, `${dbPath}-wal`, `${dbPath}-shm`]);
+      db = openDb(dbPath);
+      childArgsCommon = ['sqlite', dbPath, '-']; // '-' = unused schema slot
+      reopen = () => openDb(dbPath, { schema: false });
+      dropTrial = async () => {
+        await db.close();
+        cleanup([dbPath, `${dbPath}-wal`, `${dbPath}-shm`]);
+      };
+    }
+
+    const barrierPath = join(SCRATCH, `go-${trial}-${ENGINE}`);
+    cleanup([barrierPath]);
+
+    await seedPrincipal(db, 'p_contrib_r', 'Synthetic Racer', []);
+    await seedPrincipal(db, 'p_mod_a', 'Synthetic Mod A', ['moderator']);
+    await seedPrincipal(db, 'p_mod_b', 'Synthetic Mod B', ['moderator']);
     const server = createServer({ db, now: () => T0 });
-    const signIn = (pid) => {
-      const r = server.handle({
+    const signIn = async (pid) => {
+      const r = await server.handle({
         method: 'POST',
         path: '/v1/session',
         body: { schemaVersion: 1, credential: `synthetic:${pid}` },
@@ -75,26 +113,24 @@ test('V9 multi-process concurrent approve race: exactly one commits (T10)', { ti
       assert.equal(r.status, 201);
       return r.body.sid;
     };
-    const sidA = signIn('p_mod_a');
-    const sidB = signIn('p_mod_b');
-    const created = server.handle({
+    const contribRes = await server.handle({
+      method: 'POST',
+      path: '/v1/session',
+      body: { schemaVersion: 1, credential: 'synthetic:p_contrib_r' },
+    });
+    const created = await server.handle({
       method: 'POST',
       path: '/v1/submissions',
-      session: (() => {
-        const r = server.handle({
-          method: 'POST',
-          path: '/v1/session',
-          body: { schemaVersion: 1, credential: 'synthetic:p_contrib_r' },
-        });
-        return r.body.sid;
-      })(),
+      session: contribRes.body.sid,
       body: { schemaVersion: 1, payload: validPayload() },
     });
     assert.equal(created.status, 201);
     const subId = created.body.submissionId;
+    const sidA = await signIn('p_mod_a');
+    const sidB = await signIn('p_mod_b');
 
-    const a = launchChild([dbPath, sidA, subId, barrierPath, key(200 + trial * 2)]);
-    const b = launchChild([dbPath, sidB, subId, barrierPath, key(201 + trial * 2)]);
+    const a = launchChild([...childArgsCommon, sidA, subId, barrierPath, key(200 + trial * 2)]);
+    const b = launchChild([...childArgsCommon, sidB, subId, barrierPath, key(201 + trial * 2)]);
     await Promise.all([a.ready, b.ready]);
     writeFileSync(barrierPath, 'go');
     const [codeA, codeB] = await Promise.all([a.exited, b.exited]);
@@ -107,30 +143,73 @@ test('V9 multi-process concurrent approve race: exactly one commits (T10)', { ti
     const resB = JSON.parse(lineB);
     outcomes.push([resA.status, resB.status]);
 
-    // exactly one commits; the loser sees 409 conflict — never 500, never both
-    assert.deepEqual(
-      [resA.status, resB.status].sort(),
-      [201, 409],
-      `trial ${trial}: expected one 201 and one 409, got ${lineA} / ${lineB}`
+    // Structural invariants that MUST hold under ANY interleaving on BOTH
+    // engines: coherent committed state and a verifiable audit chain. The
+    // contract-level outcome invariant ([201, 409] exactly) is asserted only
+    // for SQLite (where BEGIN IMMEDIATE guarantees it); the PostgreSQL venue
+    // RECORDS actual outcomes as evidence — deviations (double-approve or a
+    // loser 500 instead of 409) are the T10 finding, demonstrated
+    // deterministically in v10-pg-isolation.test.mjs.
+    const statuses = [resA.status, resB.status];
+    for (const s of statuses) {
+      assert.ok(
+        [201, 409, 500].includes(s),
+        `trial ${trial}: unexpected status class, got ${lineA} / ${lineB}`
+      );
+    }
+    const commits = statuses.filter((s) => s === 201).length;
+    assert.ok(commits >= 1, `trial ${trial}: at least one decision must commit`);
+
+    const checkDb = await reopen();
+    const publishedRev = await checkDb.get('SELECT COUNT(*) AS c FROM published_revisions', []);
+    const publishedEnt = await checkDb.get('SELECT COUNT(*) AS c FROM published_entities', []);
+    const reviewEvents = await checkDb.get('SELECT COUNT(*) AS c FROM review_events', []);
+    const approvals = await checkDb.get(
+      "SELECT COUNT(*) AS c FROM audit_events WHERE action = 'decision.approve'",
+      []
     );
+    const statusRow = await checkDb.get('SELECT status FROM submissions WHERE id = ?', [subId]);
+    const chain = await verifyChain(checkDb);
 
-    // single publication, single review event, coherent audit
-    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM published_revisions').get().c, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM published_entities').get().c, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM review_events').get().c, 1);
-    assert.equal(db.prepare('SELECT status FROM submissions WHERE id = ?').get(subId).status, 'published');
-    const approvals = db
-      .prepare("SELECT COUNT(*) AS c FROM audit_events WHERE action = 'decision.approve'")
-      .get().c;
-    assert.equal(approvals, 1, 'exactly one approval audit row');
-    assert.equal(verifyChain(db).ok, true, 'audit chain coherent after race');
+    if (ENGINE === 'sqlite') {
+      // SQLite venue: BEGIN IMMEDIATE + the write lock MUST yield exactly one
+      // winner every trial (original C6 invariant).
+      assert.deepEqual(
+        statuses.sort(),
+        [201, 409],
+        `trial ${trial}: expected one 201 and one 409, got ${lineA} / ${lineB}`
+      );
+      assert.equal(publishedRev.c, 1);
+      assert.equal(publishedEnt.c, 1);
+      assert.equal(reviewEvents.c, 1);
+      assert.equal(approvals.c, 1, 'exactly one approval audit row');
+    } else {
+      // PostgreSQL venue (READ COMMITTED): the counts must at minimum be
+      // CONSISTENT with how many decisions actually committed — the observed
+      // outcome itself is evidence for v10, not asserted away here.
+      assert.equal(publishedRev.c, commits, `trial ${trial}: published_revisions == committed decisions`);
+      assert.equal(reviewEvents.c, commits, `trial ${trial}: review_events == committed decisions`);
+      assert.equal(approvals.c, commits, `trial ${trial}: approval audits == committed decisions`);
+    }
+    assert.equal(publishedEnt.c, 1, 'single entity row (upsert semantics)');
+    assert.equal(statusRow.status, 'published');
+    assert.equal(chain.ok, true, 'audit chain coherent after race');
 
-    db.close();
-    cleanup([dbPath, `${dbPath}-wal`, `${dbPath}-shm`, barrierPath]);
+    await checkDb.close();
+    await dropTrial();
+    cleanup([barrierPath]);
   }
 
   assert.equal(outcomes.length, TRIALS);
-  process.stdout.write(`V9 race outcomes across ${TRIALS} trials: ${JSON.stringify(outcomes)}\n`);
+  process.stdout.write(
+    `V9 race outcomes [${ENGINE}] across ${TRIALS} trials: ${JSON.stringify(outcomes)}\n`
+  );
+  if (ENGINE === 'postgres') {
+    const deviations = outcomes.filter((o) => o.slice().sort().join(',') !== '201,409');
+    process.stdout.write(
+      `V9 [postgres] T10-invariant deviations (not [201,409]): ${deviations.length}/${TRIALS} — ${JSON.stringify(deviations)}\n`
+    );
+  }
 });
 
 test('V9 scratch dir is disposable and contains no committed data', () => {

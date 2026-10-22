@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { checkEvidenceUrl } from '../src/ssrf.mjs';
 import { harness, seedStandardPrincipals, validPayload } from './helpers.mjs';
 
-test('V7.1 cloud metadata and loopback targets refused', () => {
+test('V7.1 cloud metadata and loopback targets refused', async () => {
   for (const url of [
     'https://169.254.169.254/latest/meta-data/',
     'http://169.254.169.254/',
@@ -19,7 +19,7 @@ test('V7.1 cloud metadata and loopback targets refused', () => {
   }
 });
 
-test('V7.2 private and special-use ranges refused', () => {
+test('V7.2 private and special-use ranges refused', async () => {
   for (const url of [
     'https://10.0.0.5/internal',
     'https://192.168.1.1/router',
@@ -38,7 +38,7 @@ test('V7.2 private and special-use ranges refused', () => {
   }
 });
 
-test('V7.3 dangerous schemes refused', () => {
+test('V7.3 dangerous schemes refused', async () => {
   for (const url of [
     'javascript:alert(1)',
     'data:text/html,<b>x</b>',
@@ -50,7 +50,7 @@ test('V7.3 dangerous schemes refused', () => {
   }
 });
 
-test('V7.4 public https URLs accepted (no network fetch is ever performed)', () => {
+test('V7.4 public https URLs accepted (no network fetch is ever performed)', async () => {
   for (const url of [
     'https://public.example.org/a-page',
     'https://en.wikipedia.org/wiki/Fixture',
@@ -60,7 +60,7 @@ test('V7.4 public https URLs accepted (no network fetch is ever performed)', () 
   }
 });
 
-test('V7.5 credentials, odd ports, .local/.internal suffixes refused', () => {
+test('V7.5 credentials, odd ports, .local/.internal suffixes refused', async () => {
   for (const url of [
     'https://user:pass@public.example.org/',
     'https://public.example.org:8443/x',
@@ -73,7 +73,7 @@ test('V7.5 credentials, odd ports, .local/.internal suffixes refused', () => {
   }
 });
 
-test('V7.6 invalid/non-canonical IPv4 literals refused; shorthand resolves before range check', () => {
+test('V7.6 invalid/non-canonical IPv4 literals refused; shorthand resolves before range check', async () => {
   // 5-octet numeric host: not a valid IPv4 → refused (fail closed)
   assert.equal(checkEvidenceUrl('https://1.2.3.4.5/').ok, false);
   // out-of-range octets fail URL parsing outright → refused
@@ -86,15 +86,15 @@ test('V7.6 invalid/non-canonical IPv4 literals refused; shorthand resolves befor
   assert.equal(checkEvidenceUrl('https://10.1/').ok, false); // → 10.0.0.1, private
 });
 
-test('V7.7 contract enforcement: bad evidence URL inside a payload → 400, not persisted', () => {
-  const h = harness();
-  seedStandardPrincipals(h.db);
-  const sid = h.signIn('p_contrib_a');
+test('V7.7 contract enforcement: bad evidence URL inside a payload → 400, not persisted', async () => {
+  const h = await harness();
+  await seedStandardPrincipals(h.db);
+  const sid = await h.signIn('p_contrib_a');
   const payload = validPayload();
   payload.fields[0].evidence = [
     { type: 'source_url', value: 'https://169.254.169.254/steal', license: 'CC0-1.0' },
   ];
-  const r = h.req({
+  const r = await h.req({
     method: 'POST',
     path: '/v1/submissions',
     session: sid,
@@ -102,10 +102,10 @@ test('V7.7 contract enforcement: bad evidence URL inside a payload → 400, not 
   });
   assert.equal(r.status, 400);
   assert.match(r.body.error.details.join(' '), /non-public range/);
-  assert.equal(h.db.prepare('SELECT COUNT(*) AS c FROM submissions').get().c, 0);
+  assert.equal((await h.db.get('SELECT COUNT(*) AS c FROM submissions', [])).c, 0);
 });
 
-test('V7.8 reference-type evidence values are plain text (no URL semantics)', () => {
+test('V7.8 reference-type evidence values are plain text (no URL semantics)', async () => {
   assert.equal(checkEvidenceUrl('https://ok.example.org/').ok, true);
   // a non-URL string is simply not a URL — only source_url entries are checked
   assert.equal(checkEvidenceUrl('ISBN-like reference text').ok, false);

@@ -19,21 +19,22 @@ export const CAPABILITIES_BY_ROLE = {
 
 const BASE_CAPABILITIES = ['submit'];
 
-export function resolveSession(db, token, now) {
+export async function resolveSession(db, token, now) {
   if (typeof token !== 'string' || token.length === 0) {
     return { error: { status: 401, code: 'unauthenticated', message: 'Missing session' } };
   }
-  const row = db.prepare('SELECT principal_id, expires_at FROM sessions WHERE sid = ?').get(token);
+  const row = await db.get('SELECT principal_id, expires_at FROM sessions WHERE sid = ?', [token]);
   if (!row) {
     return { error: { status: 401, code: 'unauthenticated', message: 'Invalid session' } };
   }
   if (row.expires_at <= now) {
-    db.prepare('DELETE FROM sessions WHERE sid = ?').run(token);
+    await db.run('DELETE FROM sessions WHERE sid = ?', [token]);
     return { error: { status: 401, code: 'unauthenticated', message: 'Expired session' } };
   }
-  const principal = db
-    .prepare('SELECT id, display_name, roles, suspended FROM principals WHERE id = ?')
-    .get(row.principal_id);
+  const principal = await db.get(
+    'SELECT id, display_name, roles, suspended FROM principals WHERE id = ?',
+    [row.principal_id]
+  );
   if (!principal) {
     // Orphaned session: fail closed.
     return { error: { status: 401, code: 'unauthenticated', message: 'Invalid session' } };

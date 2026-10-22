@@ -3,9 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Goldberg 0.11 Stage 6 C6 contract-behavior verification spike — isolated synthetic simulator. ZERO npm dependencies (node:test + node:sqlite builtins). NEVER deployed. See docs/planning/goldberg-0.11/stage-6/",
+  "description": "Goldberg 0.11 Stage 6 C6 contract-behavior verification spike \u2014 isolated synthetic simulator. SQLite venue: ZERO npm dependencies (node:test + node:sqlite builtins). PostgreSQL venue (C6-PG port): single dependency 'pg' (loopback-only wire client) on this spike branch. NEVER deployed. See docs/planning/goldberg-0.11/stage-6/",
   "scripts": {
     "test": "node --test tests/",
-    "execute": "node tools/execute.mjs"
+    "execute": "node tools/execute.mjs",
+    "execute-pg": "node tools/execute-pg.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }
