@@ -1,0 +1,40 @@
+{
+  "spike": "goldberg-0.11-stage-6-contract-pg (C6 contract behavior vs real PostgreSQL)",
+  "branch": "spike/goldberg-0.11-stage-6-contract-pg",
+  "commit": "f7bef8ed405442349ff6644e969e6f02a966b754",
+  "node": "v22.23.1",
+  "environment": {
+    "postgresVersion": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "defaultIsolation": "read committed",
+    "serverAddress": "192.168.10.80/32",
+    "serverPort": 5432
+  },
+  "staticScan": {
+    "filesScanned": 20,
+    "forbiddenFindings": [],
+    "verdict": "PASS (no external-network surface; the only socket use is the pg driver → loopback verification instance)"
+  },
+  "venues": {
+    "sqlitePostPort": {
+      "tests": 86,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 7,
+      "exitCode": 0
+    },
+    "postgres": {
+      "tests": 86,
+      "pass": 86,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "exitCode": 0
+    }
+  },
+  "verdict": "ALL VENUES PASS (local spike scope only — not production verification, not a Supabase run)",
+  "environmentWarnings": [
+    "node:sqlite emits ExperimentalWarning on Node 22 (recorded honestly in TAP output)",
+    "PostgreSQL instance is a rootless podman container bound to 127.0.0.1 only, trust auth on loopback, synthetic data only"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "postgresVersion": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "defaultIsolation": "read committed",
+  "serverAddress": "192.168.10.80/32",
+  "serverPort": 5432
+}
