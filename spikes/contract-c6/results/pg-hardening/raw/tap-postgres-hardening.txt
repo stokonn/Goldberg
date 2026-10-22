@@ -1,0 +1,788 @@
+TAP version 13
+# (node:3635133) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V1.1 valid submission accepted → 201, revision 1, status submitted
+ok 1 - V1.1 valid submission accepted → 201, revision 1, status submitted
+  ---
+  duration_ms: 285.143682
+  type: 'test'
+  ...
+# Subtest: V1.2 unknown top-level payload field → 400, nothing persisted
+ok 2 - V1.2 unknown top-level payload field → 400, nothing persisted
+  ---
+  duration_ms: 106.766884
+  type: 'test'
+  ...
+# Subtest: V1.3 mass-assignment: author/status/approval/roles in payload → 400, state unchanged
+ok 3 - V1.3 mass-assignment: author/status/approval/roles in payload → 400, state unchanged
+  ---
+  duration_ms: 122.914992
+  type: 'test'
+  ...
+# Subtest: V1.4 envelope: missing/unsupported schemaVersion → 400
+ok 4 - V1.4 envelope: missing/unsupported schemaVersion → 400
+  ---
+  duration_ms: 114.708102
+  type: 'test'
+  ...
+# Subtest: V1.5 unknown request field at the envelope level → 400 (never stripped)
+ok 5 - V1.5 unknown request field at the envelope level → 400 (never stripped)
+  ---
+  duration_ms: 109.526827
+  type: 'test'
+  ...
+# Subtest: V1.6 oversized body (>16 KiB) → 400, nothing persisted
+ok 6 - V1.6 oversized body (>16 KiB) → 400, nothing persisted
+  ---
+  duration_ms: 145.537643
+  type: 'test'
+  ...
+# Subtest: V1.7 field/evidence caps: >20 fields → 400; >10 evidence URLs → 400
+ok 7 - V1.7 field/evidence caps: >20 fields → 400; >10 evidence URLs → 400
+  ---
+  duration_ms: 127.404579
+  type: 'test'
+  ...
+# Subtest: V1.8 deeply nested JSON → 400
+ok 8 - V1.8 deeply nested JSON → 400
+  ---
+  duration_ms: 125.997596
+  type: 'test'
+  ...
+# Subtest: V1.9 HTML/script markup and control characters in text → 400, nothing persisted
+ok 9 - V1.9 HTML/script markup and control characters in text → 400, nothing persisted
+  ---
+  duration_ms: 128.373081
+  type: 'test'
+  ...
+# Subtest: V1.10 non-https / non-allowlisted evidence URL schemes → 400
+ok 10 - V1.10 non-https / non-allowlisted evidence URL schemes → 400
+  ---
+  duration_ms: 144.721208
+  type: 'test'
+  ...
+# Subtest: V1.11 bad changeKind / correction without catalogueUuid → 400
+ok 11 - V1.11 bad changeKind / correction without catalogueUuid → 400
+  ---
+  duration_ms: 117.880065
+  type: 'test'
+  ...
+# Subtest: V1.12 non-allowlisted intendedLicense → 400
+ok 12 - V1.12 non-allowlisted intendedLicense → 400
+  ---
+  duration_ms: 122.355714
+  type: 'test'
+  ...
+# Subtest: V1.13 malformed idempotencyKey (not a UUID) → 400
+ok 13 - V1.13 malformed idempotencyKey (not a UUID) → 400
+  ---
+  duration_ms: 128.507165
+  type: 'test'
+  ...
+# Subtest: V1.14 personal-practice-data style keys cannot persist (no escape hatch)
+ok 14 - V1.14 personal-practice-data style keys cannot persist (no escape hatch)
+  ---
+  duration_ms: 143.011583
+  type: 'test'
+  ...
+# Subtest: V1.15 personal-data isolation regression: valid request body keys are exactly the allowlist
+ok 15 - V1.15 personal-data isolation regression: valid request body keys are exactly the allowlist
+  ---
+  duration_ms: 124.954172
+  type: 'test'
+  ...
+# Subtest: V1.16 quota-aware boundaries are distinct from validation errors
+ok 16 - V1.16 quota-aware boundaries are distinct from validation errors
+  ---
+  duration_ms: 183.062655
+  type: 'test'
+  ...
+# (node:3635134) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: ISO-1 READ COMMITTED + faithful reads loses the T10 guard (double approve commits)
+ok 17 - ISO-1 READ COMMITTED + faithful reads loses the T10 guard (double approve commits)
+  ---
+  duration_ms: 305.479034
+  type: 'test'
+  ...
+# Subtest: ISO-2 SELECT … FOR UPDATE restores exactly-one-decision under READ COMMITTED
+ok 18 - ISO-2 SELECT … FOR UPDATE restores exactly-one-decision under READ COMMITTED
+  ---
+  duration_ms: 380.961957
+  type: 'test'
+  ...
+# Subtest: ISO-3 SERIALIZABLE: loser aborts with SQLSTATE 40001, single decision commits
+ok 19 - ISO-3 SERIALIZABLE: loser aborts with SQLSTATE 40001, single decision commits
+  ---
+  duration_ms: 214.553859
+  type: 'test'
+  ...
+# Subtest: CONS-1 concurrent duplicate idempotency insert raises 23505 (must replay, not 500)
+ok 20 - CONS-1 concurrent duplicate idempotency insert raises 23505 (must replay, not 500)
+  ---
+  duration_ms: 287.311083
+  type: 'test'
+  ...
+# Subtest: CHAIN-1 concurrent audit appends collide on seq (production needs serialized seq)
+ok 21 - CHAIN-1 concurrent audit appends collide on seq (production needs serialized seq)
+  ---
+  duration_ms: 301.977949
+  type: 'test'
+  ...
+# Subtest: TYPE-1 pg driver returns int8 as string by default; adapter keeps JSON numbers
+ok 22 - TYPE-1 pg driver returns int8 as string by default; adapter keeps JSON numbers
+  ---
+  duration_ms: 186.352241
+  type: 'test'
+  ...
+# Subtest: CONS-2 C6 DDL has no FK constraints: orphan published_revisions accepted (task 6.1 gap)
+ok 23 - CONS-2 C6 DDL has no FK constraints: orphan published_revisions accepted (task 6.1 gap)
+  ---
+  duration_ms: 173.527551
+  type: 'test'
+  ...
+# (node:3635135) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# V11 race [for-update, new entity] telemetry: {"serialization":0,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":0}
+# Subtest: V11-1 for-update: exactly-one-decision through the real hardened server (in-process)
+    # Subtest: approve race, new entity
+    ok 1 - approve race, new entity
+      ---
+      duration_ms: 382.741705
+      type: 'test'
+      ...
+# V11 race [for-update, pre-existing entity] telemetry: {"serialization":0,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":0}
+    # Subtest: approve race, pre-existing entity
+    ok 2 - approve race, pre-existing entity
+      ---
+      duration_ms: 195.789419
+      type: 'test'
+      ...
+    1..2
+ok 24 - V11-1 for-update: exactly-one-decision through the real hardened server (in-process)
+  ---
+  duration_ms: 582.177304
+  type: 'test'
+  ...
+# V11 race [serializable, new entity] telemetry: {"serialization":1,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":1}
+# Subtest: V11-2 serializable: exactly-one-decision with SQLSTATE handling (in-process)
+    # Subtest: approve race, new entity
+    ok 1 - approve race, new entity
+      ---
+      duration_ms: 229.352503
+      type: 'test'
+      ...
+# V11 race [serializable, pre-existing entity] telemetry: {"serialization":1,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":1}
+    # Subtest: approve race, pre-existing entity
+    ok 2 - approve race, pre-existing entity
+      ---
+      duration_ms: 236.194832
+      type: 'test'
+      ...
+    1..2
+ok 25 - V11-2 serializable: exactly-one-decision with SQLSTATE handling (in-process)
+  ---
+  duration_ms: 466.719193
+  type: 'test'
+  ...
+# V11 race [for-update] outcomes across 20 trials: [[201,409],[201,409],[201,409],[201,409],[201,409],[201,409],[409,201],[409,201],[409,201],[409,201],[201,409],[201,409],[201,409],[201,409],[201,409],[409,201],[201,409],[201,409],[409,201],[201,409]]
+# V11 race [for-update] telemetry: {"serialization":0,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":0}
+# Subtest: V11-3 repeated multi-process race, for-update strategy (20 trials)
+ok 26 - V11-3 repeated multi-process race, for-update strategy (20 trials)
+  ---
+  duration_ms: 8297.064849
+  type: 'test'
+  ...
+# V11 race [serializable] outcomes across 20 trials: [[201,409],[201,409],[201,409],[201,409],[409,201],[409,201],[201,409],[409,201],[409,201],[201,409],[409,201],[201,409],[201,409],[409,201],[201,409],[201,409],[201,409],[409,201],[409,201],[409,201]]
+# V11 race [serializable] telemetry: {"serialization":20,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":20}
+# Subtest: V11-4 repeated multi-process race, serializable strategy (20 trials)
+ok 27 - V11-4 repeated multi-process race, serializable strategy (20 trials)
+  ---
+  duration_ms: 7506.508391
+  type: 'test'
+  ...
+# Subtest: V11-5 contract and negative behavior (both strategies)
+    # Subtest: for-update
+        # Subtest: single approve → 201 (happy path intact)
+        ok 1 - single approve → 201 (happy path intact)
+          ---
+          duration_ms: 31.306704
+          type: 'test'
+          ...
+        # Subtest: sequential same-key duplicate → stored replay verbatim
+        ok 2 - sequential same-key duplicate → stored replay verbatim
+          ---
+          duration_ms: 27.625408
+          type: 'test'
+          ...
+        # Subtest: reject → 201 rejected (full decision vocabulary)
+        ok 3 - reject → 201 rejected (full decision vocabulary)
+          ---
+          duration_ms: 22.890197
+          type: 'test'
+          ...
+        # Subtest: unauthenticated session → 401
+        ok 4 - unauthenticated session → 401
+          ---
+          duration_ms: 15.69422
+          type: 'test'
+          ...
+        # Subtest: moderator deciding own submission → 403 actor≠author
+        ok 5 - moderator deciding own submission → 403 actor≠author
+          ---
+          duration_ms: 21.305728
+          type: 'test'
+          ...
+        # Subtest: stale expectedRevision → 409 with current state
+        ok 6 - stale expectedRevision → 409 with current state
+          ---
+          duration_ms: 17.827065
+          type: 'test'
+          ...
+        # Subtest: non-decidable (already published) → 409
+        ok 7 - non-decidable (already published) → 409
+          ---
+          duration_ms: 26.401813
+          type: 'test'
+          ...
+        # Subtest: validation failures → 400 (missing key, bad decision, unknown field)
+        ok 8 - validation failures → 400 (missing key, bad decision, unknown field)
+          ---
+          duration_ms: 20.236164
+          type: 'test'
+          ...
+        # Subtest: concurrent same-key duplicate → [201,409], one decision, one stored row
+        ok 9 - concurrent same-key duplicate → [201,409], one decision, one stored row
+          ---
+          duration_ms: 24.399363
+          type: 'test'
+          ...
+        # Subtest: kill switch on → 503; off → 201 (fail-closed intake)
+        ok 10 - kill switch on → 503; off → 201 (fail-closed intake)
+          ---
+          duration_ms: 26.903832
+          type: 'test'
+          ...
+        # Subtest: fault injection → 500 with full rollback, then clean retry → 201
+        ok 11 - fault injection → 500 with full rollback, then clean retry → 201
+          ---
+          duration_ms: 26.550594
+          type: 'test'
+          ...
+        1..11
+    ok 1 - for-update
+      ---
+      duration_ms: 340.442539
+      type: 'test'
+      ...
+    # Subtest: serializable
+        # Subtest: single approve → 201 (happy path intact)
+        ok 1 - single approve → 201 (happy path intact)
+          ---
+          duration_ms: 28.044471
+          type: 'test'
+          ...
+        # Subtest: sequential same-key duplicate → stored replay verbatim
+        ok 2 - sequential same-key duplicate → stored replay verbatim
+          ---
+          duration_ms: 25.965507
+          type: 'test'
+          ...
+        # Subtest: reject → 201 rejected (full decision vocabulary)
+        ok 3 - reject → 201 rejected (full decision vocabulary)
+          ---
+          duration_ms: 22.013087
+          type: 'test'
+          ...
+        # Subtest: unauthenticated session → 401
+        ok 4 - unauthenticated session → 401
+          ---
+          duration_ms: 15.924124
+          type: 'test'
+          ...
+        # Subtest: moderator deciding own submission → 403 actor≠author
+        ok 5 - moderator deciding own submission → 403 actor≠author
+          ---
+          duration_ms: 16.923556
+          type: 'test'
+          ...
+        # Subtest: stale expectedRevision → 409 with current state
+        ok 6 - stale expectedRevision → 409 with current state
+          ---
+          duration_ms: 16.18057
+          type: 'test'
+          ...
+        # Subtest: non-decidable (already published) → 409
+        ok 7 - non-decidable (already published) → 409
+          ---
+          duration_ms: 26.677935
+          type: 'test'
+          ...
+        # Subtest: validation failures → 400 (missing key, bad decision, unknown field)
+        ok 8 - validation failures → 400 (missing key, bad decision, unknown field)
+          ---
+          duration_ms: 16.459087
+          type: 'test'
+          ...
+        # Subtest: concurrent same-key duplicate → [201,409], one decision, one stored row
+        ok 9 - concurrent same-key duplicate → [201,409], one decision, one stored row
+          ---
+          duration_ms: 22.084412
+          type: 'test'
+          ...
+        # Subtest: kill switch on → 503; off → 201 (fail-closed intake)
+        ok 10 - kill switch on → 503; off → 201 (fail-closed intake)
+          ---
+          duration_ms: 26.399548
+          type: 'test'
+          ...
+        # Subtest: fault injection → 500 with full rollback, then clean retry → 201
+        ok 11 - fault injection → 500 with full rollback, then clean retry → 201
+          ---
+          duration_ms: 26.86588
+          type: 'test'
+          ...
+        1..11
+    ok 2 - serializable
+      ---
+      duration_ms: 323.901016
+      type: 'test'
+      ...
+    1..2
+ok 28 - V11-5 contract and negative behavior (both strategies)
+  ---
+  duration_ms: 665.498691
+  type: 'test'
+  ...
+# Subtest: V11-6 F3: concurrent idempotency store race — 23505 serves the stored replay
+ok 29 - V11-6 F3: concurrent idempotency store race — 23505 serves the stored replay
+  ---
+  duration_ms: 66.394414
+  type: 'test'
+  ...
+# V11-7 [for-update] telemetry: {"serialization":0,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":0}
+# Subtest: V11-7 F4: audit integrity at scale — 20 concurrent decisions (both strategies)
+    # Subtest: for-update
+    ok 1 - for-update
+      ---
+      duration_ms: 548.310204
+      type: 'test'
+      ...
+# V11-7 [serializable] telemetry: {"serialization":218,"deadlock":0,"uniqueViolation":0,"auditConflict":0,"mappedTo409":0,"total":218}
+    # Subtest: serializable
+    ok 2 - serializable
+      ---
+      duration_ms: 670.474557
+      type: 'test'
+      ...
+    1..2
+ok 30 - V11-7 F4: audit integrity at scale — 20 concurrent decisions (both strategies)
+  ---
+  duration_ms: 1219.678683
+  type: 'test'
+  ...
+# (node:3635136) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V2.1 missing session on a protected route → 401 unauthenticated
+ok 31 - V2.1 missing session on a protected route → 401 unauthenticated
+  ---
+  duration_ms: 241.352533
+  type: 'test'
+  ...
+# Subtest: V2.2 garbage session token → 401
+ok 32 - V2.2 garbage session token → 401
+  ---
+  duration_ms: 92.212432
+  type: 'test'
+  ...
+# Subtest: V2.3 expired session (fake clock) → 401, session row removed
+ok 33 - V2.3 expired session (fake clock) → 401, session row removed
+  ---
+  duration_ms: 133.203322
+  type: 'test'
+  ...
+# Subtest: V2.4 revoked session (DELETE /v1/session) → subsequent request 401
+ok 34 - V2.4 revoked session (DELETE /v1/session) → subsequent request 401
+  ---
+  duration_ms: 104.619159
+  type: 'test'
+  ...
+# Subtest: V2.5 contributor → admin queue: 403 forbidden (default-deny), not 401
+ok 35 - V2.5 contributor → admin queue: 403 forbidden (default-deny), not 401
+  ---
+  duration_ms: 106.357579
+  type: 'test'
+  ...
+# Subtest: V2.6 contributor → decisions endpoint: 403 (capability missing)
+ok 36 - V2.6 contributor → decisions endpoint: 403 (capability missing)
+  ---
+  duration_ms: 145.394563
+  type: 'test'
+  ...
+# Subtest: V2.7 moderator → roles.manage and audit.read: 403
+ok 37 - V2.7 moderator → roles.manage and audit.read: 403
+  ---
+  duration_ms: 121.308312
+  type: 'test'
+  ...
+# Subtest: V2.8 actor≠author: moderator deciding on own submission → 403
+ok 38 - V2.8 actor≠author: moderator deciding on own submission → 403
+  ---
+  duration_ms: 173.431459
+  type: 'test'
+  ...
+# Subtest: V2.9 suspended principal → 403 at next request while session still valid
+ok 39 - V2.9 suspended principal → 403 at next request while session still valid
+  ---
+  duration_ms: 165.532241
+  type: 'test'
+  ...
+# Subtest: V2.10 live role revocation: moderator loses decide at next request (no expiry wait)
+ok 40 - V2.10 live role revocation: moderator loses decide at next request (no expiry wait)
+  ---
+  duration_ms: 218.495969
+  type: 'test'
+  ...
+# Subtest: V2.11 GET /v1/me/capabilities reflects server-computed list only
+ok 41 - V2.11 GET /v1/me/capabilities reflects server-computed list only
+  ---
+  duration_ms: 119.659041
+  type: 'test'
+  ...
+# Subtest: V2.12 unknown synthetic credential → 401 (fake Google verification)
+ok 42 - V2.12 unknown synthetic credential → 401 (fake Google verification)
+  ---
+  duration_ms: 101.291472
+  type: 'test'
+  ...
+# Subtest: V2.13 T22 bootstrap abuse: anonymous self-grant → 401; admin self-grant → 403; audit self-edit → no endpoint
+ok 43 - V2.13 T22 bootstrap abuse: anonymous self-grant → 401; admin self-grant → 403; audit self-edit → no endpoint
+  ---
+  duration_ms: 115.560235
+  type: 'test'
+  ...
+# Subtest: V2.14 quota/role interplay: suspension does not delete anything (state preserved)
+ok 44 - V2.14 quota/role interplay: suspension does not delete anything (state preserved)
+  ---
+  duration_ms: 150.591868
+  type: 'test'
+  ...
+# (node:3635137) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V3.1 another contributor reads a pending submission by ID → 404 existence-hidden
+ok 45 - V3.1 another contributor reads a pending submission by ID → 404 existence-hidden
+  ---
+  duration_ms: 306.097515
+  type: 'test'
+  ...
+# Subtest: V3.2 cross-user revision attempt → 404, row unchanged
+ok 46 - V3.2 cross-user revision attempt → 404, row unchanged
+  ---
+  duration_ms: 164.239835
+  type: 'test'
+  ...
+# Subtest: V3.3 cross-user withdrawal attempt → 404, row unchanged
+ok 47 - V3.3 cross-user withdrawal attempt → 404, row unchanged
+  ---
+  duration_ms: 152.66959
+  type: 'test'
+  ...
+# Subtest: V3.4 moderator can read any pending submission (queue.read)
+ok 48 - V3.4 moderator can read any pending submission (queue.read)
+  ---
+  duration_ms: 180.230456
+  type: 'test'
+  ...
+# Subtest: V3.5 owner reads own submission → 200 with full payload
+ok 49 - V3.5 owner reads own submission → 200 with full payload
+  ---
+  duration_ms: 167.927724
+  type: 'test'
+  ...
+# Subtest: V3.6 pending submissions never appear in the public overlay or changes feed
+ok 50 - V3.6 pending submissions never appear in the public overlay or changes feed
+  ---
+  duration_ms: 183.780364
+  type: 'test'
+  ...
+# Subtest: V3.7 GET /v1/submissions/mine returns only own rows
+ok 51 - V3.7 GET /v1/submissions/mine returns only own rows
+  ---
+  duration_ms: 191.948871
+  type: 'test'
+  ...
+# Subtest: V3.8 cursor paging is deterministic (≤20/page, stable order)
+ok 52 - V3.8 cursor paging is deterministic (≤20/page, stable order)
+  ---
+  duration_ms: 267.478072
+  type: 'test'
+  ...
+# Subtest: V3.9 unknown endpoint → 404 not_found (no route smuggling)
+ok 53 - V3.9 unknown endpoint → 404 not_found (no route smuggling)
+  ---
+  duration_ms: 173.767475
+  type: 'test'
+  ...
+# (node:3635138) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V4.1 approve: single atomic transaction publishes (all-or-nothing effects)
+ok 54 - V4.1 approve: single atomic transaction publishes (all-or-nothing effects)
+  ---
+  duration_ms: 366.004421
+  type: 'test'
+  ...
+# Subtest: V4.2 reject: terminal state, no publication, events appended
+ok 55 - V4.2 reject: terminal state, no publication, events appended
+  ---
+  duration_ms: 195.309191
+  type: 'test'
+  ...
+# Subtest: V4.3 request_changes → immutable revision returns to in_review
+ok 56 - V4.3 request_changes → immutable revision returns to in_review
+  ---
+  duration_ms: 270.337593
+  type: 'test'
+  ...
+# Subtest: V4.4 stale expectedRevision → 409 conflict with current server state, no effect
+ok 57 - V4.4 stale expectedRevision → 409 conflict with current server state, no effect
+  ---
+  duration_ms: 246.702596
+  type: 'test'
+  ...
+# Subtest: V4.5 two moderators, same expectedRevision (sequential interleave): exactly one commits
+ok 58 - V4.5 two moderators, same expectedRevision (sequential interleave): exactly one commits
+  ---
+  duration_ms: 239.130277
+  type: 'test'
+  ...
+# Subtest: V4.6 withdrawal pre-approval is terminal; later decision → 409
+ok 59 - V4.6 withdrawal pre-approval is terminal; later decision → 409
+  ---
+  duration_ms: 418.003324
+  type: 'test'
+  ...
+# Subtest: V4.7 decision body validation: missing idempotencyKey / bad decision / bad revision → 400
+ok 60 - V4.7 decision body validation: missing idempotencyKey / bad decision / bad revision → 400
+  ---
+  duration_ms: 178.732491
+  type: 'test'
+  ...
+# Subtest: V4.8 decision on nonexistent submission → 404 (not 500)
+ok 61 - V4.8 decision on nonexistent submission → 404 (not 500)
+  ---
+  duration_ms: 165.414488
+  type: 'test'
+  ...
+# Subtest: V4.9 queue and admin detail expose immutable history with deterministic order
+ok 62 - V4.9 queue and admin detail expose immutable history with deterministic order
+  ---
+  duration_ms: 146.681458
+  type: 'test'
+  ...
+# Subtest: V4.10 quarantine: read projection stops serving; history and feed keep evidence
+ok 63 - V4.10 quarantine: read projection stops serving; history and feed keep evidence
+  ---
+  duration_ms: 155.22184
+  type: 'test'
+  ...
+# (node:3635139) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V5.1 replay: same key + identical body → original result, no second effect
+ok 64 - V5.1 replay: same key + identical body → original result, no second effect
+  ---
+  duration_ms: 294.065936
+  type: 'test'
+  ...
+# Subtest: V5.2 same key + different body → 422 idempotency_mismatch, no effect
+ok 65 - V5.2 same key + different body → 422 idempotency_mismatch, no effect
+  ---
+  duration_ms: 156.248823
+  type: 'test'
+  ...
+# Subtest: V5.3 decision replay: one publication, loser-conflict NOT created
+ok 66 - V5.3 decision replay: one publication, loser-conflict NOT created
+  ---
+  duration_ms: 185.017634
+  type: 'test'
+  ...
+# Subtest: V5.4 keys are scoped per principal (same key text, different principals)
+ok 67 - V5.4 keys are scoped per principal (same key text, different principals)
+  ---
+  duration_ms: 234.834547
+  type: 'test'
+  ...
+# Subtest: V5.5 expiry: key is ignored after ≥24 h (fake clock) → request executes fresh
+ok 68 - V5.5 expiry: key is ignored after ≥24 h (fake clock) → request executes fresh
+  ---
+  duration_ms: 250.798909
+  type: 'test'
+  ...
+# Subtest: V5.6 failed requests do not consume the key (retry is possible)
+ok 69 - V5.6 failed requests do not consume the key (retry is possible)
+  ---
+  duration_ms: 191.092771
+  type: 'test'
+  ...
+# Subtest: V5.7 quota rejection does not consume the key either
+ok 70 - V5.7 quota rejection does not consume the key either
+  ---
+  duration_ms: 281.312252
+  type: 'test'
+  ...
+# (node:3635140) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V6.1 T17 fault mid-approval → 500 internal, FULL rollback, retry succeeds once
+ok 71 - V6.1 T17 fault mid-approval → 500 internal, FULL rollback, retry succeeds once
+  ---
+  duration_ms: 334.565477
+  type: 'test'
+  ...
+# Subtest: V6.2 T17 variant: fault before any publish row → identical rollback guarantees
+ok 72 - V6.2 T17 variant: fault before any publish row → identical rollback guarantees
+  ---
+  duration_ms: 183.555768
+  type: 'test'
+  ...
+# Subtest: V6.3 kill switch: writes → 503 service_unavailable, reads continue, no fake success
+ok 73 - V6.3 kill switch: writes → 503 service_unavailable, reads continue, no fake success
+  ---
+  duration_ms: 230.040826
+  type: 'test'
+  ...
+# Subtest: V6.4 T16 pending quota: 10 pending → 429, existing data intact, local drafts preserved
+ok 74 - V6.4 T16 pending quota: 10 pending → 429, existing data intact, local drafts preserved
+  ---
+  duration_ms: 420.47433
+  type: 'test'
+  ...
+# Subtest: V6.5 pending cap (10) fires on a fresh day, distinct from the daily cap
+ok 75 - V6.5 pending cap (10) fires on a fresh day, distinct from the daily cap
+  ---
+  duration_ms: 477.699572
+  type: 'test'
+  ...
+# Subtest: V6.6 error envelope shape: distinct, display-safe, no internals leaked
+ok 76 - V6.6 error envelope shape: distinct, display-safe, no internals leaked
+  ---
+  duration_ms: 235.083229
+  type: 'test'
+  ...
+# Subtest: V6.7 every success response carries a requestId too
+ok 77 - V6.7 every success response carries a requestId too
+  ---
+  duration_ms: 168.186304
+  type: 'test'
+  ...
+# (node:3635146) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V7.1 cloud metadata and loopback targets refused
+ok 78 - V7.1 cloud metadata and loopback targets refused
+  ---
+  duration_ms: 6.422143
+  type: 'test'
+  ...
+# Subtest: V7.2 private and special-use ranges refused
+ok 79 - V7.2 private and special-use ranges refused
+  ---
+  duration_ms: 1.267027
+  type: 'test'
+  ...
+# Subtest: V7.3 dangerous schemes refused
+ok 80 - V7.3 dangerous schemes refused
+  ---
+  duration_ms: 0.71856
+  type: 'test'
+  ...
+# Subtest: V7.4 public https URLs accepted (no network fetch is ever performed)
+ok 81 - V7.4 public https URLs accepted (no network fetch is ever performed)
+  ---
+  duration_ms: 0.794583
+  type: 'test'
+  ...
+# Subtest: V7.5 credentials, odd ports, .local/.internal suffixes refused
+ok 82 - V7.5 credentials, odd ports, .local/.internal suffixes refused
+  ---
+  duration_ms: 0.6977
+  type: 'test'
+  ...
+# Subtest: V7.6 invalid/non-canonical IPv4 literals refused; shorthand resolves before range check
+ok 83 - V7.6 invalid/non-canonical IPv4 literals refused; shorthand resolves before range check
+  ---
+  duration_ms: 0.627047
+  type: 'test'
+  ...
+# Subtest: V7.7 contract enforcement: bad evidence URL inside a payload → 400, not persisted
+ok 84 - V7.7 contract enforcement: bad evidence URL inside a payload → 400, not persisted
+  ---
+  duration_ms: 256.524723
+  type: 'test'
+  ...
+# Subtest: V7.8 reference-type evidence values are plain text (no URL semantics)
+ok 85 - V7.8 reference-type evidence values are plain text (no URL semantics)
+  ---
+  duration_ms: 0.749448
+  type: 'test'
+  ...
+# (node:3635147) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# Subtest: V8.1 chain verifies after a full lifecycle sequence
+ok 86 - V8.1 chain verifies after a full lifecycle sequence
+  ---
+  duration_ms: 357.676532
+  type: 'test'
+  ...
+# Subtest: V8.2 tampering with a copied chain row is detected loudly (specific seq)
+ok 87 - V8.2 tampering with a copied chain row is detected loudly (specific seq)
+  ---
+  duration_ms: 159.308273
+  type: 'test'
+  ...
+# Subtest: V8.3 deletion of a chain row is detected (prev_hash discontinuity)
+ok 88 - V8.3 deletion of a chain row is detected (prev_hash discontinuity)
+  ---
+  duration_ms: 183.88386
+  type: 'test'
+  ...
+# Subtest: V8.4 no API route can mutate or delete audit rows (append-only surface)
+ok 89 - V8.4 no API route can mutate or delete audit rows (append-only surface)
+  ---
+  duration_ms: 142.478645
+  type: 'test'
+  ...
+# Subtest: V8.5 GET /v1/admin/audit exposes prev/this hashes and a chain head (admin only)
+ok 90 - V8.5 GET /v1/admin/audit exposes prev/this hashes and a chain head (admin only)
+  ---
+  duration_ms: 186.081378
+  type: 'test'
+  ...
+# Subtest: V8.6 audit and data tables are separate: tamper test above cannot be triggered via submission routes
+ok 91 - V8.6 audit and data tables are separate: tamper test above cannot be triggered via submission routes
+  ---
+  duration_ms: 187.068866
+  type: 'test'
+  ...
+# (node:3635158) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node-22 --trace-warnings ...` to show where the warning was created)
+# V9 race outcomes [postgres] across 10 trials: [[500,201],[500,201],[201,500],[500,201],[201,500],[201,500],[500,201],[500,201],[500,201],[500,201]]
+# V9 [postgres] T10-invariant deviations (not [201,409]): 10/10 — [[500,201],[500,201],[201,500],[500,201],[201,500],[201,500],[500,201],[500,201],[500,201],[500,201]]
+# Subtest: V9 multi-process concurrent approve race (T10)
+ok 92 - V9 multi-process concurrent approve race (T10)
+  ---
+  duration_ms: 4892.51677
+  type: 'test'
+  ...
+# Subtest: V9 scratch dir is disposable and contains no committed data
+ok 93 - V9 scratch dir is disposable and contains no committed data
+  ---
+  duration_ms: 0.460872
+  type: 'test'
+  ...
+1..93
+# tests 123
+# suites 0
+# pass 123
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19161.738424

@@ -1,0 +1,40 @@
+{
+  "spike": "goldberg-0.11-stage-6-contract-pg — CONCURRENCY HARDENING (experimental: SELECT FOR UPDATE vs SERIALIZABLE)",
+  "branch": "spike/goldberg-0.11-stage-6-contract-pg",
+  "commit": "e37ed00b9205ce22e9e8ec494651e900708ee1e3",
+  "node": "v22.23.1",
+  "environment": {
+    "postgresVersion": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "defaultIsolation": "read committed",
+    "serverAddress": "192.168.10.80/32",
+    "serverPort": 5432
+  },
+  "staticScan": {
+    "filesScanned": 23,
+    "forbiddenFindings": [],
+    "verdict": "PASS (no external-network surface; the only socket use is the pg driver → loopback verification instance)"
+  },
+  "venues": {
+    "sqliteRegression": {
+      "tests": 93,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 14,
+      "exitCode": 0
+    },
+    "postgresHardening": {
+      "tests": 123,
+      "pass": 123,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "exitCode": 0
+    }
+  },
+  "verdict": "ALL VENUES PASS (experimental local mitigation spike only — NOT production readiness, NOT a Supabase run, spike branch never merged)",
+  "environmentWarnings": [
+    "node:sqlite emits ExperimentalWarning on Node 22 (recorded honestly in TAP output)",
+    "PostgreSQL instance is a rootless podman container bound to 127.0.0.1 only, trust auth on loopback, synthetic data only"
+  ]
+}
