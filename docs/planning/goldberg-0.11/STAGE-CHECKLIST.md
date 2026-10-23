@@ -2,7 +2,7 @@
 
 Canonical policy: [AGENTS.md](../../../AGENTS.md) (§ "Stage checklist documentation").
 
-**Release status (2026-10-22): Goldberg 0.11 = IN PROGRESS.** Stages 1–5 complete (Stage 5 owner-approved); Stages 6–8 pending. **Stage 7A = 🟧 CONDITIONALLY ACCEPTED by the owner on 2026-10-22 (X9 with reservation) — one text-alignment issue remains explicitly OPEN, with a required real-device regression check before the 0.11 release (gate X10; see the Stage 7A conditional-acceptance entry below).** The single umbrella issue [#31](https://github.com/stokonn/Goldberg/issues/31) tracks the whole release and stays **OPEN** until 0.11 ships (its GitHub Project item is **In Progress**); the Stage 5 entry below remains **Done**. Earlier it had been closed/set Done on Stage-5 approval — a tracking inconsistency corrected the same day (see DECISIONS.md).
+**Release status (2026-10-23): Goldberg 0.11 IN PROGRESS. Stage 7A COMPLETE by final owner acceptance with a documented visual deviation; X9 ACCEPTED. X10 NOT FIXED / NOT VERIFIED, deferred to Gould 0.12. Minor cosmetic alignment alone no longer blocks 7A/0.11; Stage 8 separately retains material readability, accessibility and touch-target checks. Issue #31 stays OPEN / Project In Progress. Stage 6 and Stage 7B are tracked on their own branches and are not changed by this pass.**
 This checklist is synchronized continuously as work progresses. A stage is marked
 **complete** only after its verification section records checks that were actually
 executed and passed. Checkboxes without verified evidence must stay unchecked; checked
@@ -655,10 +655,9 @@ zero-cost operational plan. No provisioning, no client-side speculation.
 
 ## Stage 7 — Encyclopedia UX and Android/Web Admin clients
 
-**Status: 🚧 Stage 7A refinement pass verification-executed, awaiting owner final
-acceptance (X9); Stage 7B not started.** Part B (Android/Web Admin clients) depends on
-Stage 6 and is **not started** — no Stage 6 code, branch, worktree, credential or cloud
-resource is touched by Stage 7A.
+**Status: Stage 7A COMPLETE by final owner acceptance (2026-10-23), X9 ACCEPTED;
+X10 NOT FIXED / NOT VERIFIED, deferred to Gould 0.12.** Stage 7 overall remains in
+progress; Stage 6/7B work and gates are separately tracked, untouched here.
 
 ### Stage 7A — six-screen Encyclopedia UX redesign (owner-authorized 2026-10-22)
 
@@ -707,12 +706,12 @@ NO Stage 6/7B changes. Branch `feature/goldberg-0.11-stage-7a`, worktree
     verified pre-existing, not a 7A regression).
   - X8 seeded upgrade check: **not executed** — Stage 7A contains no schema/database/
     migration change (inspection-proven); Stage 5 upgrade evidence remains authoritative.
-- **Completion status:** Stage 7A implementation and its verification are complete; the
-  owner recorded **conditional acceptance (X9, 2026-10-22)** — see the Stage 7A
-  conditional-acceptance entry below. The stage is **NOT unconditionally complete**: the
-  text-alignment issue stays **OPEN (gate X10)** pending a real-device regression check
-  before the 0.11 release. No merge, tag, release or APK publication is authorized or
-  performed.
+- **Completion status:** Stage 7A COMPLETE by final owner acceptance (2026-10-23),
+  with a documented cosmetic visual deviation. X9 ACCEPTED; X10 NOT FIXED /
+  NOT VERIFIED, deferred to Gould 0.12. Stage 8 must separately check material
+  readability, accessibility and touch targets. Earlier conditional status is
+  historical; the final-acceptance entry below is authoritative. No release/merge.
+
 
 ### Stage 7A refinement pass — seven corrections + spacing audit (owner-authorized 2026-10-22)
 
@@ -865,7 +864,7 @@ plan/state log: [stage-7/stage-7a/REFINEMENT-CHECKPOINT.md](stage-7/stage-7a/REF
   scrollable row; category tiles ellipsize at 2× — pre-existing); the 2× CZ popover
   wraps tall but stays anchored and its dismissal cycle is verified per scale.
 
-### Stage 7A conditional owner acceptance (2026-10-22) — X9 🟧 CONDITIONAL, one issue OPEN
+### Historical Stage 7A conditional owner acceptance (2026-10-22; superseded by final acceptance below) — X9 🟧 CONDITIONAL, one issue OPEN
 
 **Purpose:** record the owner's Stage 7A acceptance decision and its explicitly
 unresolved reservation. **Scope:** documentation-only update — this checklist, both
@@ -906,3 +905,48 @@ and current mandatory verification gates.
 ---
 
 created by stokonn with love <3
+
+
+### Stage 7A final owner acceptance — completion with a documented visual deviation
+
+## Stage 7A — FINAL OWNER ACCEPTANCE (2026-10-23)
+
+**Stage 7A Encyclopedia UX is COMPLETE by explicit owner acceptance with a
+ documented visual deviation. X9: ACCEPTED. X10: NOT FIXED, NOT VERIFIED,
+ deferred to Gould 0.12.** Minor cosmetic alignment polish no longer blocks
+ Stage 7A completion or the 0.11 release by itself. This supersedes the earlier
+ conditional-acceptance decision; historical evidence and checkpoints remain intact.
+
+The owner still reports inconsistent text alignment on their physical Samsung
+device after round 3. No agent performed physical-device verification; emulator
+renders do not resolve that observation. The potential Samsung font-metric cause
+is an unconfirmed hypothesis, not a diagnosis. Follow-up, original observations
+and future verification requirements: [X10 Gould 0.12 follow-up](../gould-0.12/X10-SAMSUNG-TEXT-ALIGNMENT.md).
+
+**Stage 8 must separately verify material readability, accessibility and touch
+targets.** Those defects are not waived by accepting minor cosmetic alignment.
+No speculative typography fix is implemented or authorized in 0.11 by this decision.
+Stage 6 and Stage 7B remain outside this documentation-only pass. No application
+source/data/schema, screenshots, logs or historical test evidence changed. No
+build/test/lint rerun, emulator/device operation, merge, deployment or release.
+The release-wide Issue #31 remains OPEN / Project In Progress; Stage 7A completion
+does not complete Stage 7 or authorize publication.
+
+created by stokonn with love <3
+
+**Purpose/scope:** close the approved six-screen Encyclopedia UX stage by owner
+acceptance; documentation only, preserving all source, data and evidence.
+
+- [x] Owner final acceptance recorded: X9 ACCEPTED; Stage 7A COMPLETE.
+- [x] X10 follow-up retained as NOT FIXED / NOT VERIFIED; Gould 0.12 deferral.
+- [x] Original Samsung observations, unconfirmed font-metric hypothesis and future checks documented.
+- [x] Stage 8 material readability, accessibility and touch-target gates retained.
+- [x] Documentation consistency, follow-up links, agent policy and preservation checks PASS.
+
+Publication evidence is recorded by branch history and the final acceptance checkpoint
+in Issue #31. This documentation update carries no application merge/release authority.
+
+**Verification:** no new runtime/build evidence claimed. Prior round-3 174 JVM
+passes, lint 0 errors/124 warnings, 51 screenshots and seeded-upgrade records remain
+historical evidence unchanged. Completion is the explicit owner acceptance with
+a deviation, not a technical X10 pass.

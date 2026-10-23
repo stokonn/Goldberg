@@ -1,3 +1,45 @@
+## Stage 7A — FINAL OWNER ACCEPTANCE (2026-10-23)
+
+**Stage 7A Encyclopedia UX is COMPLETE by explicit owner acceptance with a
+ documented visual deviation. X9: ACCEPTED. X10: NOT FIXED, NOT VERIFIED,
+ deferred to Gould 0.12.** Minor cosmetic alignment polish no longer blocks
+ Stage 7A completion or the 0.11 release by itself. This supersedes the earlier
+ conditional-acceptance decision; historical evidence and checkpoints remain intact.
+
+The owner still reports inconsistent text alignment on their physical Samsung
+device after round 3. No agent performed physical-device verification; emulator
+renders do not resolve that observation. The potential Samsung font-metric cause
+is an unconfirmed hypothesis, not a diagnosis. Follow-up, original observations
+and future verification requirements: [X10 Gould 0.12 follow-up](../planning/gould-0.12/X10-SAMSUNG-TEXT-ALIGNMENT.md).
+
+**Stage 8 must separately verify material readability, accessibility and touch
+targets.** Those defects are not waived by accepting minor cosmetic alignment.
+No speculative typography fix is implemented or authorized in 0.11 by this decision.
+Stage 6 and Stage 7B remain outside this documentation-only pass. No application
+source/data/schema, screenshots, logs or historical test evidence changed. No
+build/test/lint rerun, emulator/device operation, merge, deployment or release.
+The release-wide Issue #31 remains OPEN / Project In Progress; Stage 7A completion
+does not complete Stage 7 or authorize publication.
+
+created by stokonn with love <3
+
+## Final-acceptance documentation checks — executed 2026-10-23
+
+- `git diff --check`: PASS.
+- `python3 scripts/check_agent_policy.py`: PASS (runtime agent loading not tested).
+- Python assertions: current X9 ACCEPTED / Stage7A COMPLETE, X10 DEFERRED /
+  NOT FIXED / NOT VERIFIED / NOT PASS, Stage8 material readability/accessibility/
+  touch-target gate retained; relative Gould0.12 follow-up links resolve: PASS.
+- SHA-256 comparisons: application source, workflows, scripts, Stage7A screenshots/
+  logs and pre-existing untracked visual references byte-unchanged: PASS.
+- No new build, JVM, lint, instrumentation, emulator or physical-device execution;
+  no screenshots newly captured or inspected. No APK or database change.
+
+
+---
+
+## Historical records (earlier stage statuses are not the current acceptance decision)
+
 # Goldberg 0.11 — Stage 5 VERIFICATION ledger
 
 Honest executed vs not-executed record. Only rows marked **EXECUTED** were actually run.
