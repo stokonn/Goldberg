@@ -1,0 +1,9 @@
+{
+  "avd": "GoldbergStage8Independent",
+  "serial": "emulator-5592",
+  "qemu": true,
+  "offlineBeforeStop": true,
+  "gracefulShutdown": "OK: killing emulator, bye bye\r\nOK\r\n",
+  "avdDataAndArtifactsRetained": true,
+  "otherEmulatorsOrAdbServerModified": false
+}

@@ -1,6 +1,7 @@
 """Run explicit opt-in synthetic probes on the owned offline emulator;never uninstall."""
 from pathlib import Path
 import subprocess,json,re,time,hashlib,sqlite3,os
+from redact_diagnostics import redact_text
 
 ROOT=Path(__file__).resolve().parents[3]
 ART=Path(os.environ.get('GOLDBERG_STAGE8_ARTIFACTS',str(ROOT/'.gradle/stage8-independent-artifacts')))
@@ -14,7 +15,7 @@ BASE=[ADB,'-s',SERIAL]
 
 def adb(*args,check=True):
     p=subprocess.run(BASE+list(args),capture_output=True,timeout=240)
-    with (ART/'host-commands.jsonl').open('a') as f:f.write(json.dumps({'args':args,'code':p.returncode,'stdout':p.stdout.decode(errors='replace') if args[0]!='exec-out' else None,'stderr':p.stderr.decode(errors='replace')})+'\n')
+    with (ART/'host-commands.jsonl').open('a') as f:f.write(json.dumps({'args':args,'code':p.returncode,'stdout':redact_text(p.stdout.decode(errors='replace')) if args[0]!='exec-out' else None,'stderr':redact_text(p.stderr.decode(errors='replace'))})+'\n')
     if check:p.check_returncode()
     return p.stdout
 
@@ -30,7 +31,7 @@ def instrument(method,label=None,killed=False,extra=None,cls=CLASS,marker=None):
     command=['shell','am','instrument','-w','-e','class',cls+'#'+method,'-e','goldbergStage8','synthetic','-e','goldbergStage8Run',RUN]
     for key,value in (extra or {}).items():command+=['-e',key,value]
     command+=['com.opus.piano.test/androidx.test.runner.AndroidJUnitRunner']
-    output=adb(*command).decode(errors='replace');file.write_text(output)
+    output=redact_text(adb(*command).decode(errors='replace'));file.write_text(output)
     if killed:
         assert 'Process crashed' in output or 'Process crash' in output,output
         assert marker and adb('shell','run-as','com.opus.piano','test','-e',marker)==b''

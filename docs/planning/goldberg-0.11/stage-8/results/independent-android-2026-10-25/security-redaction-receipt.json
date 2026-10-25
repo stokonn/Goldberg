@@ -1,0 +1,34 @@
+{
+  "fingerprint": "43cec959c0b2ffb5",
+  "alert": 1,
+  "publishedCommit": "42f6897bc5bc228cf4d3f8b2e1f95bee28e22566",
+  "files": [
+    {
+      "path": "docs/planning/goldberg-0.11/stage-8/results/independent-android-2026-10-25/host-commands.jsonl",
+      "originalSha256": "d9ca01118f2929e000fa3750216af5420da1368c2f12ba79e3281c22d475a8dd",
+      "redactedSha256": "d0dfc1083cee5280fc7ae141acde736eaab06d2c37d8b6d4173f2663c5978e25",
+      "redactions": 4,
+      "secretFingerprint": "43cec959c0b2ffb5"
+    },
+    {
+      "path": "docs/planning/goldberg-0.11/stage-8/results/independent-android-2026-10-25/ime-after-back.txt",
+      "originalSha256": "f420716dffb8138b9d4863010a1aabb595f33f59f3d78d0ed92185f53a0ac522",
+      "redactedSha256": "41b30deede21c3671475ce412aff66dd22a8bc6acebdb4505e358b0473309b38",
+      "redactions": 2,
+      "secretFingerprint": "43cec959c0b2ffb5"
+    },
+    {
+      "path": "docs/planning/goldberg-0.11/stage-8/results/independent-android-2026-10-25/ime-before-back.txt",
+      "originalSha256": "ceec8a5b630f9d106a259023d15f158f392d307858531a8d4a036e1139ce544f",
+      "redactedSha256": "9613aad733bdd153c4a15ec87619a340c043523379838f5a5dfadcf567971a2a",
+      "redactions": 2,
+      "secretFingerprint": "43cec959c0b2ffb5"
+    }
+  ],
+  "privateOriginalsPreserved": true,
+  "historyRewritten": false,
+  "credentialRevoked": false,
+  "pushed": false,
+  "diagnosticAssertionsPreserved": true,
+  "commandJsonAndExitCodesPreserved": true
+}

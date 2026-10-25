@@ -1,0 +1,12 @@
+{
+  "receiptSource": "da2423bcea3b9ef8d0ea88a9b08a2e5468f173d6",
+  "engineeringCI": {
+    "conclusion": "success",
+    "headSha": "be5104476cf6cb059b0f206b2c4f18027d6bc657",
+    "status": "completed",
+    "url": "https://github.com/stokonn/Goldberg/actions/runs/40188291121"
+  },
+  "notAdopted": true,
+  "nativeIntegrationAcceptance": "OPEN per source report",
+  "worktreeModifiedByStage8": false
+}

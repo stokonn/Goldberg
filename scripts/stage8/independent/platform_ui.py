@@ -19,7 +19,7 @@ try:
     adb('shell','am','set-standby-bucket','com.opus.piano','restricted')
     bucket=adb('shell','am','get-standby-bucket','com.opus.piano').decode().strip();assert int(bucket)>=40
     adb('shell','cmd','devicestoragemonitor','force-low','-f')
-    low=adb('shell','dumpsys','devicestoragemonitor').decode();(OUT/'forced-low-storage.txt').write_text(low)
+    low=redact_text(adb('shell','dumpsys','devicestoragemonitor').decode());(OUT/'forced-low-storage.txt').write_text(low)
     assert 'LOW' in low
     (OUT/'platform-restrictions.json').write_text(json.dumps({'dataSaverReadback':saver.strip(),'restrictedBucket':bucket,'forcedLowStorageObserved':True,'realDiskEnospcTested':False,'actualMeteredNetworkOrTransferTested':False,'limits':'Platform flags with all radios off;retained deterministic policy/lowspace/interrupt fixtures cover application decisions;not a real disk-full or mobile-transfer result.'},indent=2)+'\n')
 finally:
@@ -53,8 +53,8 @@ try:
     if edits:
         bounds=list(map(int,re.findall(r'\d+',edits[0].get('bounds'))))
         adb('shell','input','tap',str((bounds[0]+bounds[2])//2),str((bounds[1]+bounds[3])//2));time.sleep(1)
-        snap('landscape-ime');before=adb('shell','dumpsys','input_method').decode();(OUT/'ime-before-back.txt').write_text(before)
-        adb('shell','input','keyevent','4');time.sleep(.8);snap('landscape-ime-back');after=adb('shell','dumpsys','input_method').decode();(OUT/'ime-after-back.txt').write_text(after)
+        snap('landscape-ime');before=redact_text(adb('shell','dumpsys','input_method').decode());(OUT/'ime-before-back.txt').write_text(before)
+        adb('shell','input','keyevent','4');time.sleep(.8);snap('landscape-ime-back');after=redact_text(adb('shell','dumpsys','input_method').decode());(OUT/'ime-after-back.txt').write_text(after)
         ime['imeDismissalVerified']=('mInputShown=true' in before and 'mInputShown=false' in after)
     (OUT/'orientation-keyboard.json').write_text(json.dumps({'actualMainActivity':True,'portraitTabs':5,'landscapeTabs':5,'rotation':landscape.get('rotation'),'keyboardSteps':len(focus),'focusedSteps':sum(bool(r) for r in focus),'focus':focus,'ime':ime,'limits':'Existing8C EN/CZ/theme/font matrix retained;this is additional actual orientation/keyboard evidence,not audible TalkBack acceptance.'},indent=2)+'\n')
 finally:

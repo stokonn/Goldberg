@@ -1,6 +1,12 @@
+## Security incident checkpoint — October 25, 2026
+
+Public diagnostic credential exposure interrupted routine Stage 8 publication. Alert #1 remains OPEN; credential ownership is unverified and public history is unchanged. The three current evidence files have been redacted, restricted originals preserved, and collector/publication safeguards pass eight host regressions. No revocation, credential validation, history rewrite or Stage 6 change was performed. See [incident record](SECURITY-INCIDENT-2026-10-25.md) for scope, scan limits, publication preflight and the preserved Stage 8 resume checkpoint. Forward remediation requires the recorded full staged/outgoing scan before push; this does not invalidate the executed Android results or complete release acceptance.
+
+---
+
 ## Stage 8 — independent Android verification executed (October 25, 2026)
 
-Independent checks are VERIFIED; source publication/automatic CI receipt is in progress. This continues existing Stage8,without a new named stage. Full Stage8 integration and Goldberg0.11 release acceptance remain INCOMPLETE.
+Independent checks andsource publication/automatic CI are VERIFIED. Final documentation-only receipt follows;fullStage8/release remainsINCOMPLETE. This continues existing Stage8,without a new named stage. Full Stage8 integration and Goldberg0.11 release acceptance remain INCOMPLETE.
 
 Purpose/scope: trusted0.10.1 upgrade/data-preservation rehearsal, actual process/migration/restore/practice/reboot boundaries, missing orientation/platform observations and guarded artifact/readiness tooling. Baseline22fb50bedec7b932e47640673e52fdb57bdc791a on feature/goldberg-0.11-stage-8. Production source remains4d245b and APK68d48b…;only test/tool/docs/evidence changes. Accepted Stage7/Stage8C behavior retained.
 
@@ -12,7 +18,7 @@ Purpose/scope: trusted0.10.1 upgrade/data-preservation rehearsal, actual process
 - [x] Actual reboot preserves WorkManager IDs/offline queue/READYblob;real cancellation PASS after54.159s (not3hdelivery). DataSaver/restricted bucket45/forcedLOW readbacks observed/restored;not actual ENOSPC/mobile transfer. Retain unchanged accepted SmartCache/interrupt/metered/notification and32-config UI evidence.
 - [x] Actual EN/Dark portrait/landscape plusfour CZ/Dark font1.3/2 rotations;allfive tabs,eight keyboard-focus steps andIMEBack PASS. Eight selected original frames inspected via two review sheets.
 - [x] Package/manifest/assets/ZIP/trusted signer/test-fixture exclusion/source traceability PASS. Rehearsal artifact isdebuggable0.10.1/code11;strict release guard correctlyBLOCKS it. No official version/signing/RC selection.
-- [ ] Commit/push verified scope,read exact remote and relevant automatic CI;final append-only Issue/private PMP/AI/matrix receipt. No unchanged full native CI redispatch.
+- [x] Verified source42f6897bc5bc228cf4d3f8b2e1f95bee28e22566 ordinary-pushed/remote exact;automatic quality40191732099 SUCCESS7m24s(build/JVM/testAPKcompile/lint/sixhost checks). New native results arelocal execution,not compiled-only CI. Final docs-only receipt/append-only tracker/private PMP follow;no unchanged full native CI redispatch.
 
 Counts:new12 targeted JUnit PASS,0new skips,6deliberate actual process terminations (notJUnit passes),1corrected invalid-UUID fixture failure retained,0unresolved app failures. New final AndroidTest compile PASS21s;no production/JVM logic changes. Retained CI40170295032:190native/188pass/2oldexternal skips and275JVM at its original source;not new executions here.
 

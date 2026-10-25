@@ -1,0 +1,29 @@
+{
+  "hostRegressionTests": 8,
+  "hostRegressionFailures": 0,
+  "actualOriginalRedactionTransformVerified": true,
+  "commandJsonExitCodesAndImeStatesPreserved": true,
+  "workingPublicationScan": {
+    "result": "PASS",
+    "filesScanned": 6492,
+    "archiveMembersInspected": true,
+    "note": "Snapshot before final incident documentation/receipts; final staged scan also required."
+  },
+  "newArtifactScan": {
+    "result": "PASS",
+    "filesScanned": 65,
+    "archiveMembersInspected": true
+  },
+  "indexBeforeRedactionStaged": {
+    "result": "FAIL",
+    "findings": 8,
+    "expected": true
+  },
+  "alert": 1,
+  "alertState": "OPEN",
+  "validity": "unknown",
+  "credentialOwnershipVerified": false,
+  "credentialUsedOrRevoked": false,
+  "historyRewritten": false,
+  "normalStage8CheckpointPreserved": true
+}

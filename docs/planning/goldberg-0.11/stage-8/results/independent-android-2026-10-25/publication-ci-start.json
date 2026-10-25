@@ -1,0 +1,10 @@
+[
+  {
+    "conclusion": "",
+    "databaseId": 40191732099,
+    "headSha": "42f6897bc5bc228cf4d3f8b2e1f95bee28e22566",
+    "status": "in_progress",
+    "url": "https://github.com/stokonn/Goldberg/actions/runs/40191732099",
+    "workflowName": "Goldberg quality checks"
+  }
+]
