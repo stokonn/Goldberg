@@ -1,3 +1,29 @@
+## Goldberg 0.11-rc.1 — published release candidate (October 25, 2026)
+
+[Download Goldberg 0.11-rc.1](https://github.com/stokonn/Goldberg/releases/tag/v0.11-rc.1).
+The candidate is a signed, non-debuggable release build, versionCode 12. Goldberg
+0.10.1 remains the latest stable release. Catalogue, encyclopedia, offline bundles,
+Smart Cache and accepted Android UI work are included; the Stage 8 Settings focus,
+full navigation labels and test-scaffold contrast corrections are included.
+
+**Production community networking, cloud sign-in and real-user contribution
+collection remain disabled. No private Cloudflare Worker has been deployed.**
+The existing private Supabase schema is deployed, but it is not a live public
+community service. Personal practice data remains local.
+
+[Candidate CI](https://github.com/stokonn/Goldberg/actions/runs/40212684482):302 JVM
+cases passed;203 native cases,192 passed/11 existing fixture or probe-dependent
+skips/0 failures on API36. Seeded 0.10.1 upgrade preserved original rows, preferences
+and37 sessions;offline startup and process-death integrity checks passed. CI uses
+debug rebuilds;the release APK certificate was independently verified against the
+published APK. Final0.11/cloud acceptance remains open for credentials/privateTLS/
+OAuth,privacy/source policy,operational backup custody and public API/client adoption.
+
+Earlier dated entries below are historical and are superseded by this candidate
+status where they describe pending UI corrections or the absence of a candidate.
+
+---
+
 ## Current owner decision — October 24, 2026
 
 **Stage7B ACCEPTED WITH DOCUMENTED LIMITATIONS; Stage7 Android client/synthetic acceptance scope COMPLETED.** Stage7A was already accepted. [Explicit owner decision](https://github.com/stokonn/Goldberg/issues/31#issuecomment-6388393525). Existing CI25 and emulator evidence is unchanged; no tests were rerun for this documentation-only decision.

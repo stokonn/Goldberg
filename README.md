@@ -1,3 +1,7 @@
+> [Goldberg0.11-rc.1](https://github.com/stokonn/Goldberg/releases/tag/v0.11-rc.1) is
+> available as a signed release candidate. Production community networking and
+> real-user cloud collection remain disabled.0.10.1 remains latest stable.
+
 # Goldberg
 
 A native Android piano practice journal built with Kotlin, Jetpack Compose, Material 3 and Room. Android 8.0+; English and Czech; light and dark themes. Your journal stays local.
