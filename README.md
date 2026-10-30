@@ -2,23 +2,24 @@
 
 <img src="app/src/main/res/mipmap-xxxhdpi/ic_goldberg.png" alt="Gould app icon" width="104" />
 
-# Gould
+<h1>Gould</h1>
 
-**Make every practice session count.**
+<p><strong>Make every practice session count.</strong></p>
 
-A thoughtful, local-first piano practice companion for Android.  
-Build your repertoire, record your sessions, and see how far you've come.
+<p>A thoughtful, local-first piano practice companion for Android.<br />
+Build your repertoire, record your sessions, and see how far you've come.</p>
 
-[**Download Gould 0.12 Stable**](https://github.com/stokonn/Gould/releases/download/v0.12/Gould-v0.12.apk) · [What's new](docs/releases/GOULD-0.12.md) · [User guide](docs/wiki/User-Guide.md)
+<p><a href="https://github.com/stokonn/Gould/releases/download/v0.12/Gould-v0.12.apk"><strong>Download Gould 0.12 Stable</strong></a> · <a href="docs/releases/GOULD-0.12.md">What's new</a> · <a href="docs/wiki/User-Guide.md">User guide</a></p>
 
-![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
-![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20CZ-64748b)
-![Offline-first](https://img.shields.io/badge/Practice%20data-on%20device-256b5b)
-[![Stars](https://img.shields.io/github/stars/stokonn/Gould?style=flat&logo=github&label=Stars)](https://github.com/stokonn/Gould/stargazers)
+<p>
+<img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&amp;logoColor=white" />
+<img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&amp;logoColor=white" />
+<img alt="Languages" src="https://img.shields.io/badge/Languages-EN%20%7C%20CZ-64748b" />
+<img alt="Offline-first" src="https://img.shields.io/badge/Practice%20data-on%20device-256b5b" />
+<a href="https://github.com/stokonn/Gould/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/stokonn/Gould?style=flat&amp;logo=github&amp;label=Stars" /></a>
+</p>
 
 </div>
-
 ---
 
 ## Your music. Your progress.
